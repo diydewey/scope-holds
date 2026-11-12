@@ -1,0 +1,570 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Scope Holds">
+<meta name="theme-color" content="#0F151A">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<title>Scope Holds</title>
+<style>
+:root {
+  --ground: #E8EBED; --surface: #F7F8F9; --ink: #16202A; --muted: #586571; --rule: #CDD4DA;
+  --brass: #87600F; --brass-soft: #EFE2C6; --warn: #9E650A; --warn-soft: #F3E3C1; --bad: #B0352A; --good: #2C7A4C;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --ground: #0F151A; --surface: #172027; --ink: #E3E8EC; --muted: #8D9AA5; --rule: #2A3540;
+    --brass: #DDAE55; --brass-soft: #3A2E17; --warn: #E1A43F; --warn-soft: #3A2C13; --bad: #EA6C5E; --good: #5FBC86;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #0F151A; --surface: #172027; --ink: #E3E8EC; --muted: #8D9AA5; --rule: #2A3540;
+  --brass: #DDAE55; --brass-soft: #3A2E17; --warn: #E1A43F; --warn-soft: #3A2C13; --bad: #EA6C5E; --good: #5FBC86;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.4 var(--sans);
+  padding: env(safe-area-inset-top) 0 calc(64px + env(safe-area-inset-bottom)); }
+header { display: flex; align-items: center; gap: 10px; padding: 12px 16px 8px; }
+header h1 { margin: 0; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
+header h1 span { color: var(--brass); }
+header select { flex: 1; min-width: 0; }
+main { padding: 0 16px; max-width: 560px; margin: 0 auto; }
+.card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 12px; margin: 0 0 12px; }
+.card h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+label { display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+label .u { color: var(--muted); font-weight: 400; }
+input, select, button { font: inherit; font-size: 16px; color: var(--ink); }
+input, select { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid var(--rule); border-radius: 8px; background: var(--ground); }
+input:focus, select:focus { outline: 2px solid var(--brass); outline-offset: -1px; }
+button { padding: 9px 14px; border: 1px solid var(--brass); border-radius: 8px; background: transparent; color: var(--brass); font-weight: 600; cursor: pointer; }
+button.solid { background: var(--brass); color: var(--ground); }
+button.quiet { border-color: var(--rule); color: var(--muted); }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.mv input { font: 600 28px/1.1 var(--mono); padding: 8px 10px; text-align: center; color: var(--brass); }
+.mv .line { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
+.mv .line b { font-size: 14px; }
+.mv .line span { color: var(--muted); font: 600 14px var(--mono); }
+.sub { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
+.wx-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.wx-head h2 { margin: 0; }
+.note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.note.warn { color: var(--warn); }
+/* reticle */
+.reticle-fig { margin: 0; display: grid; gap: 6px; justify-items: center; }
+.reticle-fig svg { width: 100%; max-width: 420px; color: var(--ink); }
+.reticle-fig figcaption { font-size: 12px; color: var(--muted); text-align: center; }
+.r-field { fill: var(--ground); stroke: var(--rule); stroke-width: 1.5; }
+.r-lab { fill: var(--brass); font: 600 13px var(--mono); }
+.r-lab.zero { fill: var(--muted); }
+.mag-slider { position: relative; width: 100%; max-width: 360px; padding-top: 24px; }
+.mag-slider input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--brass); height: 30px; }
+.mag-now { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--pos, 1)); transform: translateX(-50%);
+  font: 600 14px/1.2 var(--mono); color: var(--brass); white-space: nowrap; }
+.mag-ends { display: flex; justify-content: space-between; font: 500 12px/1 var(--mono); color: var(--muted); }
+/* tables */
+.tbl { width: 100%; border-collapse: collapse; font: 13px/1.3 var(--mono); }
+.tbl th, .tbl td { padding: 7px 4px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
+.tbl th:first-child, .tbl td:first-child { text-align: left; }
+.tbl thead th { font: 600 10.5px/1.2 var(--sans); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); vertical-align: bottom; }
+.tbl thead .u { display: block; text-transform: none; font-weight: 400; }
+.tbl tbody th { font-family: var(--sans); font-weight: 600; }
+.tbl td.big { color: var(--brass); font-weight: 700; font-size: 14px; }
+.tbl tr.transonic td { background: var(--warn-soft); }
+.tbl tr:last-child th, .tbl tr:last-child td { border-bottom: 0; }
+.scroll { overflow-x: auto; }
+/* correction rows */
+.chk { display: grid; grid-template-columns: 1fr 1.6fr 1fr auto; gap: 6px; align-items: end; padding: 8px 0; border-bottom: 1px solid var(--rule); }
+.chk .x { padding: 9px 11px; border-color: var(--rule); color: var(--muted); }
+.chk .moaBox { grid-column: 2; }
+.ok { color: var(--good); } .badtxt { color: var(--bad); }
+.fit { margin-top: 10px; padding: 10px; border-radius: 8px; background: var(--brass-soft); font-size: 14px; }
+.fit button { margin-top: 8px; }
+/* bottom tabs */
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(3, 1fr);
+  background: var(--surface); border-top: 1px solid var(--rule); padding-bottom: env(safe-area-inset-bottom); z-index: 5; }
+nav.tabs button { border: 0; border-radius: 0; padding: 14px 0 12px; color: var(--muted); font-size: 14px; }
+nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass); }
+[hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Scope <span>Holds</span></h1>
+  <select id="rifleSel" aria-label="Rifle"></select>
+</header>
+<main>
+  <!-- ======================= Holds ======================= -->
+  <section id="tab-holds">
+    <div class="card mv">
+      <div class="line"><b>Muzzle velocity</b><input id="mv" type="number" inputmode="decimal" step="1" aria-label="Muzzle velocity in fps"><span>fps</span></div>
+      <p class="sub" id="rifleLine"></p>
+    </div>
+    <div class="card">
+      <div class="wx-head"><h2>Weather</h2><button id="wxBtn" type="button">Get local weather</button></div>
+      <div class="grid3">
+        <label>Temp <span class="u">°F</span><input id="tF" type="number" inputmode="decimal" step="any"></label>
+        <label>Pressure <span class="u">inHg, station</span><input id="pIn" type="number" inputmode="decimal" step="any" placeholder="from alt."></label>
+        <label>Altitude <span class="u">ft</span><input id="alt" type="number" inputmode="decimal" step="any"></label>
+      </div>
+      <p class="note" id="wxNote"></p>
+    </div>
+    <div class="card">
+      <figure class="reticle-fig">
+        <svg id="reticle" viewBox="-150 -85 300 280" role="img" aria-label="Reticle with the distance for each holdover mark"></svg>
+        <div class="mag-slider">
+          <output class="mag-now" id="magOut"></output>
+          <input type="range" id="mag" aria-label="Magnification">
+          <div class="mag-ends"><span id="magMin"></span><span id="magMax"></span></div>
+        </div>
+        <figcaption id="reticleCap"></figcaption>
+      </figure>
+    </div>
+    <div class="card">
+      <p class="note warn" id="holdMsg" hidden></p>
+      <div class="scroll"><table class="tbl" id="holdTable"></table></div>
+      <p class="note">Wind = full-value crosswind that pushes the bullet to the edge of the mark. Amber rows are below Mach 1.2, where drag curves are least reliable. Confirm on paper.</p>
+    </div>
+  </section>
+
+  <!-- ======================= Rifle ======================= -->
+  <section id="tab-rifle" hidden>
+    <div class="card">
+      <h2>Rifle and load</h2>
+      <div class="grid2">
+        <label style="grid-column: 1 / -1">Name<input id="rName" type="text" autocomplete="off"></label>
+        <label style="grid-column: 1 / -1">Scope<select id="rScope"></select></label>
+        <label>Ballistic coefficient<input id="rBc" type="number" inputmode="decimal" step="any"></label>
+        <label>Drag model<select id="rModel"><option value="g1">G1</option><option value="g7">G7</option></select></label>
+        <label>Muzzle velocity <span class="u">fps</span><input id="rMv" type="number" inputmode="decimal" step="any"></label>
+        <label>Zero <span class="u">yd</span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
+        <label>Sight height <span class="u">in, bore to scope center</span><input id="rSight" type="number" inputmode="decimal" step="any"></label>
+      </div>
+      <p class="note" id="bcNote"></p>
+    </div>
+    <div class="row">
+      <button id="newRifle" type="button">New rifle</button>
+      <button id="copyRifle" type="button" class="quiet">Duplicate</button>
+      <button id="delRifle" type="button" class="quiet">Delete</button>
+    </div>
+    <p class="note">Everything saves on this phone only, as you type.</p>
+  </section>
+
+  <!-- ======================= Correct ======================= -->
+  <section id="tab-correct" hidden>
+    <div class="card">
+      <h2>Check or correct the BC</h2>
+      <p class="note" style="margin-top:0">Shoot a group at a known distance holding a mark, then enter where its center landed: inches above (+) or below (−) the aim point. Use your chronographed velocity on the Holds tab; the BC is what gets corrected. Points past 300 yd tell the most.</p>
+      <div id="chkRows"></div>
+      <div class="row" style="margin-top:10px">
+        <button id="addChk" type="button" class="quiet">Add distance</button>
+        <button id="runChk" type="button">Check</button>
+        <button id="fitBc" type="button" class="solid">Correct BC</button>
+      </div>
+    </div>
+    <div class="card" id="chkOut" hidden></div>
+  </section>
+</main>
+<nav class="tabs">
+  <button type="button" data-tab="holds" class="on">Holds</button>
+  <button type="button" data-tab="rifle">Rifle</button>
+  <button type="button" data-tab="correct">Correct</button>
+</nav>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ---------- ballistics (same solver as Sg Bench) ---------- */
+const DRAG = {
+  g1: [[0,0.2629],[0.05,0.2558],[0.1,0.2487],[0.15,0.2413],[0.2,0.2344],[0.25,0.2278],[0.3,0.2214],[0.35,0.2155],[0.4,0.2104],[0.45,0.2061],[0.5,0.2032],[0.55,0.202],[0.6,0.2034],[0.7,0.2165],[0.725,0.223],[0.75,0.2313],[0.775,0.2417],[0.8,0.2546],[0.825,0.2706],[0.85,0.2901],[0.875,0.3136],[0.9,0.3415],[0.925,0.3734],[0.95,0.4084],[0.975,0.4448],[1,0.4805],[1.025,0.5136],[1.05,0.5427],[1.075,0.5677],[1.1,0.5883],[1.125,0.6053],[1.15,0.6191],[1.2,0.6393],[1.25,0.6518],[1.3,0.6589],[1.35,0.6621],[1.4,0.6625],[1.45,0.6607],[1.5,0.6573],[1.55,0.6528],[1.6,0.6474],[1.65,0.6413],[1.7,0.6347],[1.75,0.628],[1.8,0.621],[1.85,0.6141],[1.9,0.6072],[1.95,0.6003],[2,0.5934],[2.05,0.5867],[2.1,0.5804],[2.15,0.5743],[2.2,0.5685],[2.25,0.563],[2.3,0.5577],[2.35,0.5527],[2.4,0.5481],[2.45,0.5438],[2.5,0.5397],[2.6,0.5325],[2.7,0.5264],[2.8,0.5211],[2.9,0.5168],[3,0.5133],[3.1,0.5105],[3.2,0.5084],[3.3,0.5067],[3.4,0.5054],[3.5,0.504],[3.6,0.503],[3.7,0.5022],[3.8,0.5016],[3.9,0.501],[4,0.5006],[4.2,0.4998],[4.4,0.4995],[4.6,0.4992],[4.8,0.499],[5,0.4988]],
+  g7: [[0,0.1198],[0.05,0.1197],[0.1,0.1196],[0.15,0.1194],[0.2,0.1193],[0.25,0.1194],[0.3,0.1194],[0.35,0.1194],[0.4,0.1193],[0.45,0.1193],[0.5,0.1194],[0.55,0.1193],[0.6,0.1194],[0.65,0.1197],[0.7,0.1202],[0.725,0.1207],[0.75,0.1215],[0.775,0.1226],[0.8,0.1242],[0.825,0.1266],[0.85,0.1306],[0.875,0.1368],[0.9,0.1464],[0.925,0.166],[0.95,0.2054],[0.975,0.2993],[1,0.3803],[1.025,0.4015],[1.05,0.4043],[1.075,0.4034],[1.1,0.4014],[1.125,0.3987],[1.15,0.3955],[1.2,0.3884],[1.25,0.381],[1.3,0.3732],[1.35,0.3657],[1.4,0.358],[1.5,0.344],[1.55,0.3376],[1.6,0.3315],[1.65,0.326],[1.7,0.3209],[1.75,0.316],[1.8,0.3117],[1.85,0.3078],[1.9,0.3042],[1.95,0.301],[2,0.298],[2.05,0.2951],[2.1,0.2922],[2.15,0.2892],[2.2,0.2864],[2.25,0.2835],[2.3,0.2807],[2.35,0.2779],[2.4,0.2752],[2.45,0.2725],[2.5,0.2697],[2.55,0.267],[2.6,0.2643],[2.65,0.2615],[2.7,0.2588],[2.75,0.2561],[2.8,0.2533],[2.85,0.2506],[2.9,0.2479],[2.95,0.2451],[3,0.2424],[3.1,0.2368],[3.2,0.2313],[3.3,0.2258],[3.4,0.2205],[3.5,0.2154],[3.6,0.2106],[3.7,0.206],[3.8,0.2017],[3.9,0.1975],[4,0.1935],[4.2,0.1861],[4.4,0.1793],[4.6,0.173],[4.8,0.1672],[5,0.1618]]
+};
+const PIR = 2.08551e-4, GRAV = 32.174, MOA_IN = 1.047198, MPH_FPS = 1.4666667;
+const stdPressure = ft => 29.92 * Math.pow(1 - 6.8756e-6 * ft, 5.2559);
+
+function cdAt(tbl, mach) {
+  if (mach <= tbl[0][0]) return tbl[0][1];
+  const end = tbl[tbl.length - 1];
+  if (mach >= end[0]) return end[1];
+  let lo = 0, hi = tbl.length - 1;
+  while (hi - lo > 1) { const mid = (lo + hi) >> 1; if (tbl[mid][0] <= mach) lo = mid; else hi = mid; }
+  const a = tbl[lo], b = tbl[hi];
+  return a[1] + (b[1] - a[1]) * (mach - a[0]) / (b[0] - a[0]);
+}
+
+// Flat-fire point mass: midpoint integration, drag along the air-relative velocity.
+function shoot(p, angle, samplesFt) {
+  const dt = 0.0005, k = PIR * p.densityRatio / p.bc;
+  const acc = (vx, vy, vz) => {
+    const rx = vx - p.windX, ry = vy, rz = vz - p.windZ;
+    const vr = Math.sqrt(rx * rx + ry * ry + rz * rz);
+    const f = -k * cdAt(p.table, vr / p.sound) * vr;
+    return [f * rx, f * ry - GRAV, f * rz];
+  };
+  let x = 0, y = -p.sight / 12, z = 0, t = 0;
+  let vx = p.mv * Math.cos(angle), vy = p.mv * Math.sin(angle), vz = 0;
+  const rows = [];
+  let next = 0, guard = 0;
+  while (next < samplesFt.length && guard++ < 300000 && vx > 1) {
+    const px = x, py = y, pz = z, pt = t, pv = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    const a1 = acc(vx, vy, vz);
+    const hx = vx + a1[0] * dt / 2, hy = vy + a1[1] * dt / 2, hz = vz + a1[2] * dt / 2;
+    const a2 = acc(hx, hy, hz);
+    x += hx * dt; y += hy * dt; z += hz * dt;
+    vx += a2[0] * dt; vy += a2[1] * dt; vz += a2[2] * dt;
+    t += dt;
+    const nv = Math.sqrt(vx * vx + vy * vy + vz * vz);
+    while (next < samplesFt.length && x >= samplesFt[next]) {
+      const span = x - px, f = span > 0 ? (samplesFt[next] - px) / span : 0;
+      rows.push({ ft: samplesFt[next], t: pt + f * (t - pt), dropFt: py + f * (y - py), windFt: pz + f * (z - pz), v: pv + f * (nv - pv) });
+      next++;
+    }
+  }
+  return rows;
+}
+
+// Launch angle that puts the bullet on the line of sight at the zero range.
+function zeroAngle(p, zeroFt) {
+  const err = a => { const r = shoot(p, a, [zeroFt]); return r.length ? r[0].dropFt : 1e6; };
+  let a0 = 0, e0 = err(a0), a1 = 0.002, e1 = err(a1);
+  for (let i = 0; i < 40 && Math.abs(e1) > 2e-5; i++) {
+    const den = e1 - e0;
+    let a2 = Math.abs(den) < 1e-12 ? a1 + 0.001 : a1 - e1 * (a1 - a0) / den;
+    a2 = Math.max(-0.05, Math.min(0.25, a2));
+    a0 = a1; e0 = e1; a1 = a2; e1 = err(a1);
+  }
+  return a1;
+}
+
+/* ---------- scopes: marks in MOA below the crosshair at the calibrated power (second focal plane) ---------- */
+const SCOPES = [{
+  id: "bushnell-banner2-3-9x40-doaqbr", name: "Bushnell Banner 2 3-9x40 · DOA-QBR", reticle: "DOA-QBR",
+  mags: [3, 9], calMag: 9,
+  marks: [{ label: "Dot 1", moa: 1.40 }, { label: "Dot 2", moa: 3.40 }, { label: "Dot 3", moa: 6.20 },
+          { label: "Dot 4", moa: 9.60 }, { label: "Post top", moa: 13.92 }],
+  draw: { thin: 3.47, post: 13.92, dot: 1.0, hash: [1.5, 2.0, 2.2, 4.0], lineW: 0.25, postW: 0.75, taper: 60 },
+}, {
+  id: "nikon-3-9x40-bdc", name: "Nikon 3-9x40 · BDC", reticle: "BDC",
+  note: "drawn from Nikon's mark values (circles at 2.0 / 4.5 / 7.0 / 11.0 in, post 15.0 in at 100 yd)",
+  mags: [3, 9], calMag: 9,
+  marks: [{ label: "Circle 1", moa: 1.91 }, { label: "Circle 2", moa: 4.30 }, { label: "Circle 3", moa: 6.68 },
+          { label: "Circle 4", moa: 10.50 }, { label: "Post top", moa: 14.32 }],
+  draw: { thin: 3.65, post: 14.32, dot: 1.35, ring: 0.3, noTop: true, hash: [1.35, 1.35, 1.35, 1.35], lineW: 0.2, postW: 0.9, taper: 30 },
+}];
+
+/* ---------- state (saved on this phone) ---------- */
+const KEY = "scope-holds-v1";
+const newRifle = (name, from) => Object.assign({ name: "My rifle", scope: SCOPES[0].id, mag: 9, bc: 0.45, model: "g1", mv: 2700, zero: 100, sight: 1.5, checks: [] },
+  from ? JSON.parse(JSON.stringify(from)) : {}, { id: "r" + Date.now().toString(36), name: name || (from ? from.name + " copy" : "My rifle") });
+let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.rifles && s.rifles.length) return s; } catch (e) {} return null; })();
+if (!S) { const r = newRifle(); S = { cur: r.id, rifles: [r], env: { tF: 59, pIn: null, alt: 0, at: null } }; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
+const rifle = () => S.rifles.find(r => r.id === S.cur) || S.rifles[0];
+const scopeOf = r => SCOPES.find(s => s.id === r.scope) || SCOPES[0];
+const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null; };
+
+function params(r, bc) {
+  const e = S.env, T = Number.isFinite(e.tF) ? e.tF : 59, P = e.pIn > 0 ? e.pIn : stdPressure(e.alt > 0 ? e.alt : 0);
+  return { bc: bc || r.bc, table: DRAG[r.model] || DRAG.g1, mv: r.mv, sight: r.sight || 0,
+    densityRatio: (P / 29.92) * (518.67 / (T + 459.67)), sound: 49.0223 * Math.sqrt(T + 459.67), windX: 0, windZ: 0 };
+}
+const ready = r => r.bc > 0 && r.mv > 0 && r.zero > 0 && r.sight >= 0 && Number.isFinite(S.env.tF);
+const holdOf = row => -row.dropFt * 12 / (MOA_IN * row.ft / 300);   // MOA below the line of sight
+
+/* ---------- holds ---------- */
+function windForEdge(p, angle, yd, edgeMoa) {
+  const drift = mph => {
+    const r = shoot(Object.assign({}, p, { windZ: -mph * MPH_FPS }), angle, [yd * 3])[0];
+    return r ? Math.abs(r.windFt * 12) / (MOA_IN * yd / 100) : 0;
+  };
+  let lo = 0, hi = 60;
+  if (drift(hi) < edgeMoa) return null;
+  for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; if (drift(mid) < edgeMoa) lo = mid; else hi = mid; }
+  return (lo + hi) / 2;
+}
+
+function scopeHolds(r, sc) {
+  const p = params(r), angle = zeroAngle(p, r.zero * 3);
+  const samples = [];
+  for (let y = 1; y <= 2500; y++) samples.push(y * 3);
+  const path = shoot(p, angle, samples);
+  const zeroRow = shoot(p, angle, [r.zero * 3])[0];
+  const scale = sc.calMag / r.mag;   // second focal plane
+  const out = [{ label: "Crosshair", moa: 0, yd: r.zero, dropIn: 0, v: zeroRow ? zeroRow.v : null, sound: p.sound, edge: sc.draw.thin * scale }];
+  sc.marks.forEach((m, i) => {
+    const moa = m.moa * scale;
+    let hit = null;
+    for (let j = 1; j < path.length; j++) {
+      const a = path[j - 1], b = path[j];
+      if (b.ft / 3 <= r.zero) continue;
+      const ha = holdOf(a), hb = holdOf(b);
+      if (hb >= moa) {
+        const f = hb > ha ? (moa - ha) / (hb - ha) : 0;
+        hit = { yd: (a.ft + f * (b.ft - a.ft)) / 3, dropIn: -(a.dropFt + f * (b.dropFt - a.dropFt)) * 12, v: a.v + f * (b.v - a.v) };
+        break;
+      }
+    }
+    const edge = sc.draw.hash[i] ? sc.draw.hash[i] / 2 * scale : null;
+    out.push(Object.assign({ label: m.label, moa, sound: p.sound, edge, last: path.length ? path[path.length - 1].ft / 3 : 0 }, hit || { yd: null }));
+  });
+  out.forEach(o => { o.wind = o.edge && o.yd ? windForEdge(p, angle, o.yd, o.edge) : null; });
+  return out;
+}
+
+function drawReticle(sc, rows, mag) {
+  const d = sc.draw, k = 10;    // 10 drawing units per MOA
+  const dist = o => o && o.yd ? Math.round(o.yd) + " yd" : "—";
+  const cx = 0, cy = 55, R = 128;
+  let g = '<defs><clipPath id="retClip"><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '"/></clipPath></defs>' +
+    '<circle class="r-field" cx="' + cx + '" cy="' + cy + '" r="' + R + '"/><g clip-path="url(#retClip)" stroke="currentColor" fill="currentColor">';
+  const line = (x1, y1, x2, y2, w) => '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke-width="' + w + '"/>';
+  const thin = d.lineW * k, far = 400;
+  g += line(-d.thin * k, 0, d.thin * k, 0, thin) + line(0, d.noTop ? -far : -d.thin * k, 0, d.post * k, thin);
+  // thick posts narrow to the thin line with the maker's included angle
+  const hw = d.postW * k / 2, hn = thin / 2, taperLen = (hw - hn) / Math.tan(d.taper / 2 * Math.PI / 180);
+  const post = (start, ax, ay) => {
+    const pt = (u, v) => ((ax * u - ay * v).toFixed(2) + "," + (ay * u + ax * v).toFixed(2));
+    return '<polygon stroke="none" points="' + [pt(start, -hn), pt(start + taperLen, -hw), pt(far, -hw),
+      pt(far, hw), pt(start + taperLen, hw), pt(start, hn)].join(" ") + '"/>';
+  };
+  g += post(d.thin * k, 1, 0) + post(d.thin * k, -1, 0) + (d.noTop ? "" : post(d.thin * k, 0, -1)) + post(d.post * k, 0, 1);
+  sc.marks.slice(0, d.hash.length).forEach((m, i) => {
+    const y = m.moa * k;
+    g += d.ring ? '<circle cx="0" cy="' + y + '" r="' + ((d.dot - d.ring) * k / 2) + '" fill="none" stroke-width="' + (d.ring * k) + '"/>'
+      : '<circle cx="0" cy="' + y + '" r="' + (d.dot * k / 2) + '" stroke="none"/>' + line(-d.hash[i] * k / 2, y, d.hash[i] * k / 2, y, 1.3);
+  });
+  g += "</g>";
+  const labX = d.hash[d.hash.length - 1] * k / 2 + 8;
+  g += '<text class="r-lab zero" x="' + (d.thin * k + 6) + '" y="-13">' + (rows && rows[0] ? dist(rows[0]) + " zero" : "zero") + "</text>";
+  sc.marks.forEach((m, i) => {
+    const o = rows ? rows[i + 1] : null;
+    g += '<text class="r-lab" x="' + (i < d.hash.length ? labX : 10) + '" y="' + (m.moa * k + 4.5) + '">' + (i < d.hash.length ? "" : "post ") + dist(o) + "</text>";
+  });
+  $("reticle").innerHTML = g;
+  $("reticleCap").textContent = sc.reticle + " reticle, " + (sc.note || "drawn from the maker's dimensions") + (mag !== sc.calMag ? " · marks scaled to " + mag + "x" : "");
+}
+
+function showMag(r, sc) {
+  const lo = sc.mags[0], hi = sc.mags[1], m = $("mag"), out = $("magOut");
+  if (!(r.mag >= lo && r.mag <= hi)) r.mag = sc.calMag;
+  m.min = lo; m.max = hi; m.step = 1; m.value = String(r.mag);
+  $("magMin").textContent = lo + "x"; $("magMax").textContent = hi + "x";
+  out.textContent = r.mag + "x" + (r.mag === sc.calMag ? " calibrated" : "");
+  out.style.setProperty("--pos", (r.mag - lo) / (hi - lo));
+  out.style.transform = r.mag === lo ? "none" : r.mag === hi ? "translateX(-100%)" : "";
+}
+
+function renderHolds() {
+  const r = rifle(), sc = scopeOf(r), msg = $("holdMsg"), table = $("holdTable");
+  showMag(r, sc);
+  $("rifleLine").textContent = r.model.toUpperCase() + " " + (r.bc > 0 ? r.bc.toFixed(3) : "—") + " · zero " + (r.zero || "—") + " yd · sight " + (r.sight || 0) + " in · " + sc.name.split(" · ")[1];
+  if (!ready(r)) {
+    msg.textContent = "Fill in velocity here, and BC, zero and sight height on the Rifle tab.";
+    msg.hidden = false; table.innerHTML = ""; drawReticle(sc, null, r.mag); return;
+  }
+  msg.hidden = true;
+  const rows = scopeHolds(r, sc);
+  let h = '<thead><tr><th>Mark</th><th>Hold<span class="u">MOA</span></th><th>Range<span class="u">yd</span></th><th>Drop<span class="u">in</span></th>' +
+    '<th>Vel<span class="u">fps</span></th><th>Wind<span class="u">mph</span></th></tr></thead><tbody>';
+  rows.forEach(o => {
+    const reach = o.yd !== null, cls = reach && o.v / o.sound < 1.2 ? ' class="transonic"' : "";
+    h += "<tr" + cls + "><th>" + o.label + "</th><td>" + o.moa.toFixed(2) + '</td><td class="big">' + (reach ? Math.round(o.yd) : "past " + Math.round(o.last)) + "</td>" +
+      "<td>" + (reach ? Math.abs(o.dropIn).toFixed(1) : "—") + "</td><td>" + (reach && o.v ? Math.round(o.v) : "—") + "</td>" +
+      "<td>" + (o.wind !== null ? o.wind.toFixed(1) : o.edge && reach ? "60+" : "—") + "</td></tr>";
+  });
+  table.innerHTML = h + "</tbody>";
+  drawReticle(sc, rows, r.mag);
+}
+
+/* ---------- weather ---------- */
+const compass = deg => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+function wxNote(text, warn) { const n = $("wxNote"); n.textContent = text; n.classList.toggle("warn", !!warn); }
+function showEnv() {
+  const e = S.env;
+  $("tF").value = Number.isFinite(e.tF) ? e.tF : "";
+  $("pIn").value = e.pIn > 0 ? e.pIn : "";
+  $("alt").value = Number.isFinite(e.alt) ? e.alt : "";
+  if (e.manual) wxNote("Entered by hand." + (e.pIn > 0 ? "" : " No pressure: using a standard day at the altitude."));
+  else if (e.at) {
+    const t = new Date(e.at), age = (Date.now() - e.at) / 60000;
+    wxNote("Local weather from " + t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (age > 720 ? " on " + t.toLocaleDateString() : "") +
+      " · humidity " + Math.round(e.hum) + "% · wind " + Math.round(e.wind) + " mph from the " + compass(e.windDir) + " (" + Math.round(e.windDir) + "°)", age > 180);
+  } else wxNote("Tap Get local weather, or type temperature and pressure (or altitude for a standard day).");
+}
+function getWeather(quiet) {
+  if (!navigator.geolocation) { if (!quiet) wxNote("Location isn't available here. Type the numbers in.", true); return; }
+  if (!quiet) wxNote("Finding your location…");
+  navigator.geolocation.getCurrentPosition(async pos => {
+    // rounded to ~1 km: plenty for weather, and the exact spot never leaves the phone
+    const la = pos.coords.latitude.toFixed(2), lo = pos.coords.longitude.toFixed(2);
+    try {
+      if (!quiet) wxNote("Getting the weather…");
+      const u = "https://api.open-meteo.com/v1/forecast?latitude=" + la + "&longitude=" + lo +
+        "&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph";
+      const res = await fetch(u); if (!res.ok) throw new Error(res.status);
+      const j = await res.json(), c = j.current;
+      S.env = { tF: Math.round(c.temperature_2m * 10) / 10, pIn: Math.round(c.surface_pressure * 0.02953 * 100) / 100,
+        alt: Math.round(j.elevation * 3.28084), at: Date.now(), hum: c.relative_humidity_2m, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, auto: true };
+      save(); showEnv(); renderHolds(); if (!$("chkOut").hidden) runCheck(false);
+    } catch (e) {
+      if (!quiet) wxNote("No connection." + (S.env.at ? " Still using the weather from " + new Date(S.env.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + "." : " Type the numbers in."), true);
+    }
+  }, err => { if (!quiet) wxNote(err.code === 1 ? "Location is off for this app. Turn it on in Settings › Privacy › Location Services › Safari Websites, or type the numbers in." : "Couldn't find your location. Type the numbers in.", true); },
+  { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
+}
+function envInput() {
+  S.env = Object.assign({}, S.env, { tF: num($("tF").value), pIn: num($("pIn").value), alt: num($("alt").value), manual: true, auto: false });
+  save(); showEnv(); renderHolds();
+}
+
+/* ---------- rifle tab ---------- */
+function fillRifleSel() {
+  const sel = $("rifleSel"); sel.innerHTML = "";
+  S.rifles.forEach(r => { const o = document.createElement("option"); o.value = r.id; o.textContent = r.name || "(no name)"; sel.appendChild(o); });
+  sel.value = rifle().id;
+}
+function showRifle() {
+  const r = rifle();
+  $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc ?? ""; $("rModel").value = r.model;
+  $("rMv").value = r.mv ?? ""; $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? ""; $("mv").value = r.mv ?? "";
+  $("bcNote").textContent = r.bcNote || "";
+}
+function rifleInput(e) {
+  const r = rifle(), id = e.target.id;
+  if (id === "rName") { r.name = e.target.value; fillRifleSel(); }
+  else if (id === "rScope") { r.scope = e.target.value; r.mag = scopeOf(r).calMag; }
+  else if (id === "rModel") r.model = e.target.value;
+  else if (id === "rBc") { r.bc = num(e.target.value); r.bcNote = ""; $("bcNote").textContent = ""; }
+  else if (id === "rMv" || id === "mv") { r.mv = num(e.target.value); $(id === "mv" ? "rMv" : "mv").value = e.target.value; }
+  else if (id === "rZero") r.zero = num(e.target.value);
+  else if (id === "rSight") r.sight = num(e.target.value);
+  save(); renderHolds();
+}
+
+/* ---------- correct tab ---------- */
+function markOptions(sc) {
+  return [["c", "Crosshair"]].concat(sc.marks.map((m, i) => ["m" + i, m.label]), [["moa", "MOA"]]);
+}
+function heldMoa(r, sc, c) {
+  if (c.held === "c") return 0;
+  if (c.held === "moa") return num(c.moa);
+  const i = parseInt(c.held.slice(1), 10);
+  return sc.marks[i] ? sc.marks[i].moa * sc.calMag / r.mag : null;
+}
+function buildChecks() {
+  const r = rifle(), sc = scopeOf(r), box = $("chkRows");
+  if (!r.checks.length) r.checks.push({ yd: "", held: "m1", moa: "", off: "" });
+  box.innerHTML = "";
+  r.checks.forEach((c, i) => {
+    const div = document.createElement("div"); div.className = "chk";
+    const opts = markOptions(sc).map(([v, t]) => '<option value="' + v + '"' + (c.held === v ? " selected" : "") + ">" + t + "</option>").join("");
+    div.innerHTML = '<label>Distance <span class="u">yd</span><input data-k="yd" type="number" inputmode="decimal" step="any" value="' + (c.yd ?? "") + '"></label>' +
+      '<label>Held <span class="u">at ' + r.mag + 'x</span><select data-k="held">' + opts + "</select></label>" +
+      '<label>Impact <span class="u">in, + high</span><input data-k="off" type="text" inputmode="text" placeholder="0" value="' + (c.off ?? "") + '"></label>' +
+      '<button type="button" class="x" aria-label="Remove">×</button>' +
+      (c.held === "moa" ? '<label class="moaBox">MOA dialed or held<input data-k="moa" type="number" inputmode="decimal" step="any" value="' + (c.moa ?? "") + '"></label>' : "");
+    div.addEventListener("input", e => { const k = e.target.dataset.k; if (!k) return; c[k] = e.target.value; save(); if (k === "held") buildChecks(); });
+    div.querySelector(".x").addEventListener("click", () => { r.checks.splice(i, 1); save(); buildChecks(); });
+    box.appendChild(div);
+  });
+}
+// Each usable check point: the hold that would have centered the group (MOA)
+function checkPoints(r, sc) {
+  return r.checks.map(c => {
+    const yd = num(c.yd), held = heldMoa(r, sc, c), off = num(String(c.off || "0").replace("−", "-")) || 0;
+    if (!(yd > 0) || held === null) return null;
+    return { yd, held, off, need: held - off / (MOA_IN * yd / 100), label: c.held === "moa" ? held.toFixed(2) + " MOA" : markOptions(sc).find(o => o[0] === c.held)[1] };
+  }).filter(Boolean).sort((a, b) => a.yd - b.yd);
+}
+function predict(r, pts, bc) {
+  const p = params(r, bc), a = zeroAngle(p, r.zero * 3), rows = shoot(p, a, pts.map(q => q.yd * 3));
+  return pts.map((q, i) => rows[i] ? holdOf(rows[i]) : null);
+}
+const rmsMiss = (pts, pred) => Math.sqrt(pts.reduce((s, q, i) => s + (pred[i] - q.need) ** 2, 0) / pts.length);
+function runCheck(fit) {
+  const r = rifle(), sc = scopeOf(r), out = $("chkOut"), pts = checkPoints(r, sc);
+  out.hidden = false;
+  if (!ready(r)) { out.innerHTML = '<p class="note warn" style="margin:0">Fill in velocity, BC, zero and sight height first.</p>'; return; }
+  if (!pts.length) { out.innerHTML = '<p class="note warn" style="margin:0">Enter at least one distance.</p>'; return; }
+  const pred = predict(r, pts);
+  let best = null;
+  if (fit) {
+    // golden-section search on BC for the smallest miss across all points (velocity held at the chronographed value)
+    let lo = r.bc * 0.5, hi = r.bc * 1.6;
+    const f = bc => rmsMiss(pts, predict(r, pts, bc)), g = (Math.sqrt(5) - 1) / 2;
+    let x1 = hi - g * (hi - lo), x2 = lo + g * (hi - lo), f1 = f(x1), f2 = f(x2);
+    for (let i = 0; i < 40; i++) {
+      if (f1 < f2) { hi = x2; x2 = x1; f2 = f1; x1 = hi - g * (hi - lo); f1 = f(x1); }
+      else { lo = x1; x1 = x2; f1 = f2; x2 = lo + g * (hi - lo); f2 = f(x2); }
+    }
+    const bc = (lo + hi) / 2;
+    best = { bc, pred: predict(r, pts, bc), edge: bc < r.bc * 0.52 || bc > r.bc * 1.58 };
+  }
+  const miss = (m, yd) => { const v = m.toFixed(2), inch = Math.abs(m * MOA_IN * yd / 100).toFixed(1);
+    return '<span class="' + (Math.abs(m) <= 0.5 ? "ok" : "badtxt") + '">' + (m > 0 ? "+" : "") + v + "</span>" + '<span class="u" style="display:block;color:var(--muted)">' + inch + " in</span>"; };
+  let h = '<h2>' + (fit ? "BC correction" : "Check") + '</h2><div class="scroll"><table class="tbl"><thead><tr><th>Range<span class="u">yd</span></th><th>Held</th><th>Needed<span class="u">MOA</span></th>' +
+    '<th>Model<span class="u">MOA</span></th><th>Miss<span class="u">MOA</span></th>' + (best ? '<th>New miss<span class="u">MOA</span></th>' : "") + "</tr></thead><tbody>";
+  pts.forEach((q, i) => {
+    h += "<tr><td>" + Math.round(q.yd) + "</td><td>" + q.label + "</td><td>" + q.need.toFixed(2) + "</td><td>" + (pred[i] !== null ? pred[i].toFixed(2) : "—") + "</td><td>" +
+      (pred[i] !== null ? miss(pred[i] - q.need, q.yd) : "—") + "</td>" + (best ? "<td>" + miss(best.pred[i] - q.need, q.yd) + "</td>" : "") + "</tr>";
+  });
+  h += "</tbody></table></div>";
+  const now = rmsMiss(pts, pred), far = pts[pts.length - 1].yd;
+  h += '<p class="note">Miss = model hold minus the hold that centered the group (+ = model holds too much). Average miss with BC ' + r.bc.toFixed(3) + ": <b>" + now.toFixed(2) + " MOA</b>" +
+    (now <= 0.5 ? " — the model agrees with your shots." : ".") + "</p>";
+  if (far < 300) h += '<p class="note warn">Farthest point is ' + Math.round(far) + " yd. BC barely changes the drop that close, so a correction needs a shot past 300 yd.</p>";
+  if (best) {
+    const pct = (best.bc / r.bc - 1) * 100, after = rmsMiss(pts, best.pred);
+    h += '<div class="fit">Best fit: <b>' + r.model.toUpperCase() + " " + best.bc.toFixed(3) + "</b> (" + (pct >= 0 ? "+" : "") + pct.toFixed(1) + "% from " + r.bc.toFixed(3) + "), average miss " + after.toFixed(2) + " MOA." +
+      (best.edge ? '<p class="note warn">The fit ran into the search limit, so BC alone doesn\'t explain these shots. Check the velocity, zero, sight height and weather first.</p>' : "") +
+      '<br><button type="button" class="solid" id="useBc">Use BC ' + best.bc.toFixed(3) + "</button></div>";
+  }
+  out.innerHTML = h;
+  if (best) $("useBc").addEventListener("click", () => {
+    r.bcNote = "Corrected from " + r.bc.toFixed(3) + " on " + new Date().toLocaleDateString() + " (" + pts.length + " point" + (pts.length > 1 ? "s" : "") + ", " + Math.round(far) + " yd farthest).";
+    r.bc = Math.round(best.bc * 1000) / 1000; save(); showRifle(); renderHolds(); runCheck(false);
+  });
+}
+
+/* ---------- wiring ---------- */
+function showAll() { fillRifleSel(); showRifle(); showEnv(); renderHolds(); buildChecks(); $("chkOut").hidden = true; }
+const sc0 = $("rScope"); SCOPES.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sc0.appendChild(o); });
+["rName", "rScope", "rBc", "rModel", "rMv", "rZero", "rSight", "mv"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
+["tF", "pIn", "alt"].forEach(id => $(id).addEventListener("input", envInput));
+$("mag").addEventListener("input", e => { rifle().mag = Number(e.target.value); save(); renderHolds(); });
+$("rifleSel").addEventListener("change", e => { S.cur = e.target.value; save(); showAll(); });
+$("wxBtn").addEventListener("click", () => getWeather(false));
+$("newRifle").addEventListener("click", () => { const r = newRifle("New rifle"); S.rifles.push(r); S.cur = r.id; save(); showAll(); $("rName").focus(); });
+$("copyRifle").addEventListener("click", () => { const r = newRifle(null, rifle()); S.rifles.push(r); S.cur = r.id; save(); showAll(); });
+$("delRifle").addEventListener("click", () => {
+  if (S.rifles.length < 2) { alert("This is the only rifle. Add another before deleting it."); return; }
+  if (!confirm("Delete " + (rifle().name || "this rifle") + "?")) return;
+  S.rifles = S.rifles.filter(r => r.id !== S.cur); S.cur = S.rifles[0].id; save(); showAll();
+});
+$("addChk").addEventListener("click", () => { rifle().checks.push({ yd: "", held: "m1", moa: "", off: "" }); save(); buildChecks(); });
+$("runChk").addEventListener("click", () => runCheck(false));
+$("fitBc").addEventListener("click", () => runCheck(true));
+document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll("nav.tabs button").forEach(x => x.classList.toggle("on", x === b));
+  ["holds", "rifle", "correct"].forEach(t => { $("tab-" + t).hidden = t !== b.dataset.tab; });
+  if (b.dataset.tab === "correct") buildChecks();
+  window.scrollTo(0, 0);
+}));
+showAll();
+// refresh the weather on open when it's over 30 minutes old and location was allowed before
+if (S.env.auto && (!S.env.at || Date.now() - S.env.at > 30 * 60000)) getWeather(true);
+if ("serviceWorker" in navigator && location.protocol === "https:") navigator.serviceWorker.register("sw.js");
+</script>
+</body>
+</html>
