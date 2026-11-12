@@ -52,7 +52,7 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.mv input { font: 600 28px/1.1 var(--mono); padding: 8px 10px; text-align: center; color: var(--brass); }
+.mv output { font: 600 28px/1.1 var(--mono); padding: 8px 10px; text-align: center; color: var(--brass); }
 .mv .line { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
 .mv .line b { font-size: 14px; }
 .mv .line span { color: var(--muted); font: 600 14px var(--mono); }
@@ -68,6 +68,27 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .r-field { fill: var(--ground); stroke: var(--rule); stroke-width: 1.5; }
 .r-lab { fill: var(--brass); font: 600 13px var(--mono); }
 .r-lab.zero { fill: var(--muted); }
+/* deer overlay: a daylight scene whatever the theme, black reticle, labels with a white halo */
+#deerBtn[aria-pressed="true"] { background: var(--brass); color: var(--ground); }
+.ret-row { display: flex; gap: 8px; width: 100%; align-items: stretch; justify-content: center; }
+.ret-row svg { flex: 1; min-width: 0; }
+.deer-on { color: #111 !important; }
+.deer-on .r-field { fill: #CFDBE3; }
+.deer-on .r-lab, .deer-on .r-lab.zero { fill: #1B1B1B; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 3px; }
+.grass { fill: #7C8A52; }
+.d-body { fill: #8A6643; } .d-far { fill: #6B4E33; } .d-white { fill: #EFE9DF; } .d-antler { stroke: #D9CCB0; } .d-eye { fill: #222; }
+.vital { fill: rgba(255,255,255,.12); stroke: #fff; stroke-width: .8; stroke-dasharray: 3 2; }
+.dial { flex: 0 0 58px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 0; border: 1px solid var(--rule); border-radius: 12px;
+  background: repeating-linear-gradient(180deg, var(--surface) 0 6px, var(--ground) 6px 8px); touch-action: none; user-select: none; -webkit-user-select: none; cursor: ns-resize;
+  box-shadow: inset 0 12px 12px -8px rgba(0,0,0,.45), inset 0 -12px 12px -8px rgba(0,0,0,.45); }
+.d-item { text-align: center; font: 600 13px/1 var(--mono); color: var(--muted); padding: 7px 0; }
+.d-item.on { color: var(--ground); background: var(--brass); font-size: 16px; border-radius: 6px; margin: 0 4px; }
+.d-item small { display: block; font-size: 10px; font-weight: 500; }
+.deer-read { margin: 0; font-size: 14px; text-align: center; }
+.deer-read b { color: var(--brass); }
+.deer-read.warn { color: var(--warn); }
+/* Rifle tab locked until Edit */
+#tab-rifle input:disabled, #tab-rifle select:disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: transparent; border-color: transparent; padding-left: 0; -webkit-appearance: none; appearance: none; }
 .mag-slider { position: relative; width: 100%; max-width: 360px; padding-top: 24px; }
 .mag-slider input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--brass); height: 30px; }
 .mag-now { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--pos, 1)); transform: translateX(-50%);
@@ -111,7 +132,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
   <!-- ======================= Holds ======================= -->
   <section id="tab-holds">
     <div class="card mv">
-      <div class="line"><b>Muzzle velocity</b><input id="mv" type="number" inputmode="decimal" step="1" aria-label="Muzzle velocity in fps"><span>fps</span></div>
+      <div class="line"><b>Muzzle velocity</b><output id="mv" aria-label="Muzzle velocity in fps"></output><span>fps</span></div>
       <p class="sub" id="mvSrc"></p>
       <p class="sub" id="rifleLine"></p>
     </div>
@@ -125,8 +146,13 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
       <p class="note" id="wxNote"></p>
     </div>
     <div class="card">
+      <div class="wx-head"><h2>Reticle</h2><button id="deerBtn" type="button" aria-pressed="false">Deer overlay</button></div>
       <figure class="reticle-fig">
-        <svg id="reticle" viewBox="-150 -85 300 280" role="img" aria-label="Reticle with the distance for each holdover mark"></svg>
+        <div class="ret-row">
+          <div class="dial" id="dial" hidden role="slider" tabindex="0" aria-label="Distance to the deer, yards" aria-valuemin="25" aria-valuemax="800"></div>
+          <svg id="reticle" viewBox="-150 -85 300 280" role="img" aria-label="Reticle with the distance for each holdover mark"></svg>
+        </div>
+        <p class="deer-read" id="deerRead" hidden></p>
         <div class="mag-slider">
           <output class="mag-now" id="magOut"></output>
           <input type="range" id="mag" aria-label="Magnification">
@@ -165,9 +191,10 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
     <div class="row">
       <button id="newRifle" type="button">New rifle</button>
       <button id="copyRifle" type="button" class="quiet">Duplicate</button>
+      <button id="editRifle" type="button" class="solid">Edit</button>
       <button id="delRifle" type="button" class="quiet">Delete</button>
     </div>
-    <p class="note">Everything saves on this phone only, as you type.</p>
+    <p class="note">Tap Edit to change this rifle, then Save. Everything stays on this phone only.</p>
   </section>
 
   <!-- ======================= Correct ======================= -->
@@ -274,17 +301,17 @@ const SCOPES = [{
 
 /* ---------- state (saved on this phone) ---------- */
 const KEY = "scope-holds-v1";
-// mvs: chronographed muzzle velocities with the temperature they were shot at; mvToday: a velocity typed on the Holds tab
-const newRifle = (name, from) => Object.assign({ name: "My rifle", scope: SCOPES[0].id, mag: 9, bc: 0.45, model: "g1", mvs: [{ mv: 2700, t: 59 }], mvToday: null, zero: 100, sight: 1.5, checks: [] },
+// mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
+const newRifle = (name, from) => Object.assign({ name: "My rifle", scope: SCOPES[0].id, mag: 9, bc: 0.45, model: "g1", mvs: [{ mv: 2700, t: 59 }], zero: 100, sight: 1.5, checks: [] },
   from ? JSON.parse(JSON.stringify(from)) : {}, { id: "r" + Date.now().toString(36), name: name || (from ? from.name + " copy" : "My rifle") });
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.rifles && s.rifles.length) return s; } catch (e) {} return null; })();
 if (!S) { const r = newRifle(); S = { cur: r.id, rifles: [r], env: { tF: 59, pIn: null, alt: 0, at: null } }; }
 // rifles saved before the velocity table had one velocity (mv)
-S.rifles.forEach(r => { if (!Array.isArray(r.mvs)) { r.mvs = [{ mv: r.mv > 0 ? r.mv : null, t: null }]; r.mvToday = null; delete r.mv; } });
+S.rifles.forEach(r => { if (!Array.isArray(r.mvs)) { r.mvs = [{ mv: r.mv > 0 ? r.mv : null, t: null }]; delete r.mv; } delete r.mvToday; });
+S.deer = Object.assign({ on: false, yd: 200 }, S.deer);
 
 // Velocity for today's temperature: straight line through the chrono points, extended past the ends.
 function mvInfo(r) {
-  if (r.mvToday > 0) return { mv: r.mvToday, src: "today" };
   const T = S.env.tF, all = r.mvs.filter(p => p.mv > 0), pts = all.filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
   if (pts.length < 2 || !Number.isFinite(T)) return all.length ? { mv: (pts[0] || all[0]).mv, src: "single" } : { mv: null, src: "none" };
   let i = 1;                               // segment [i-1, i]: first one below the coldest point, last one above the hottest
@@ -342,15 +369,64 @@ function scopeHolds(r, sc) {
     out.push(Object.assign({ label: m.label, moa, sound: p.sound, edge, last: path.length ? path[path.length - 1].ft / 3 : 0 }, hit || { yd: null }));
   });
   out.forEach(o => { o.wind = o.edge && o.yd ? windForEdge(p, angle, o.yd, o.edge) : null; });
+  out.path = path;   // 1-yd samples, kept for the deer overlay
   return out;
+}
+
+/* ---------- deer overlay ---------- */
+// Broadside whitetail buck facing left, drawn in inches with the origin on the heart-lung center (vitals ~9 in across);
+// brisket at y = +7, back at -12, ground at +27, chest-to-rump ~47 in.
+const DEER_SVG =
+  '<path class="d-far" d="M2,8 C2.5,13 3,18 3,21 L2.6,27 L0.4,27 L0.6,21 C0.2,17 -0.5,12 -1,8 Z M22,9 C23,13 25,16 26,19 L25.5,27 L23.3,27 L23.8,20 C22,17 20,13 19,9 Z"/>' +
+  '<path class="d-body" d="M-8,7 C-13,5 -15,0 -14,-6 C-15,-12 -18,-19 -21,-25 C-24,-27 -28,-27 -32,-27 C-34.5,-27.5 -34.5,-30.5 -32,-31 C-28,-33 -24,-35 -21,-35.5 L-17,-41 L-15.5,-40 L-17.5,-34 ' +
+    'C-13,-29 -9,-19 -3,-13 C1,-12 4,-12.5 8,-12 C16,-11.5 25,-12.5 31,-11 C35.5,-10 37,-5 35.5,0 C35,5 33,9 31,11 C31,15 33,18 32.5,21 L31.5,27 L28.8,27 L29.5,21.5 C28.5,17 26.5,13.5 24,11 ' +
+    'C17,10 8,10 3,8.5 C1.8,12 1.8,18 1.2,20 L0.8,27 L-2.2,27 L-2.4,20 C-3,15 -5,10 -8,7 Z"/>' +
+  '<path class="d-white" d="M-19,-24 C-17,-21 -16,-18 -15,-15 C-16,-19 -18,-22 -21,-25 Z M34,-6 L37.5,-4 L35.5,1 Z"/>' +
+  '<path class="d-antler" d="M-20.5,-35.5 C-18,-42 -22,-48 -31,-47 C-33,-46.5 -34,-45 -34.5,-43.5 M-20.8,-43 L-19.8,-50 M-25,-46.8 L-25,-53.5 M-29.5,-47 L-30.5,-53 M-21,-38.5 L-23.5,-41" fill="none" stroke-width="1.1" stroke-linecap="round"/>' +
+  '<circle class="d-eye" cx="-27" cy="-30" r="0.8"/>';
+const DIAL_MIN = 25, DIAL_MAX = 800;
+let lastRows = null;   // last computed holds, so the dial only redraws the picture
+
+// Where the bullet lands at the deer's distance, and which mark to put on the vitals
+function deerAim(r, sc, rows) {
+  const yd = S.deer.yd, o = rows.path[yd - 1];
+  if (!o) return { yd, hold: null };
+  const hold = holdOf(o), inPer = MOA_IN * yd / 100, scale = sc.calMag / r.mag;
+  const marks = [{ label: "the crosshair", moa: 0 }].concat(sc.marks.map(m => ({ label: m.label, moa: m.moa * scale })));
+  const best = marks.reduce((a, b) => Math.abs(b.moa - hold) < Math.abs(a.moa - hold) ? b : a);
+  return { yd, hold, s: 10 / inPer, dropIn: -o.dropFt * 12, best, offIn: (best.moa - hold) * inPer };
+}
+function renderDial() {
+  const yd = S.deer.yd, el = $("dial");
+  let h = "";
+  for (let i = -3; i <= 3; i++) {
+    const v = yd + i * 5, show = v >= DIAL_MIN && v <= DIAL_MAX;
+    h += '<div class="d-item' + (i === 0 ? " on" : "") + '" data-v="' + (show ? v : "") + '" style="opacity:' + (i === 0 ? 1 : 1 - Math.abs(i) * 0.22) + '">' +
+      (show ? v + (i === 0 ? "<small>yd</small>" : "") : "&nbsp;") + "</div>";
+  }
+  el.innerHTML = h; el.setAttribute("aria-valuenow", yd);
+}
+function setDeerYd(v) {
+  v = Math.max(DIAL_MIN, Math.min(DIAL_MAX, Math.round(v / 5) * 5));
+  if (v === S.deer.yd) return;
+  S.deer.yd = v; save(); renderDial();
+  const r = rifle(); drawReticle(scopeOf(r), lastRows, r.mag);
 }
 
 function drawReticle(sc, rows, mag) {
   const d = sc.draw, k = 10;    // 10 drawing units per MOA
   const dist = o => o && o.yd ? Math.round(o.yd) + " yd" : "—";
   const cx = 0, cy = 55, R = 128;
+  const aim = S.deer.on && rows && rows.path ? deerAim(rifle(), sc, rows) : null;
   let g = '<defs><clipPath id="retClip"><circle cx="' + cx + '" cy="' + cy + '" r="' + R + '"/></clipPath></defs>' +
     '<circle class="r-field" cx="' + cx + '" cy="' + cy + '" r="' + R + '"/><g clip-path="url(#retClip)" stroke="currentColor" fill="currentColor">';
+  if (aim && aim.hold !== null) {
+    // the deer sits where the bullet lands: vitals at the hold point below the crosshair, drawn to scale for the distance
+    const hk = aim.hold * k, s = aim.s;
+    g += '<rect class="grass" stroke="none" x="-200" y="' + (hk + 27 * s).toFixed(2) + '" width="400" height="800"/>' +
+      '<g stroke="none" transform="translate(0 ' + hk.toFixed(2) + ") scale(" + s.toFixed(4) + ')">' + DEER_SVG + "</g>" +
+      '<circle class="vital" cx="0" cy="' + hk.toFixed(2) + '" r="' + (4.5 * s).toFixed(2) + '"/>';
+  }
   const line = (x1, y1, x2, y2, w) => '<line x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '" stroke-width="' + w + '"/>';
   const thin = d.lineW * k, far = 400;
   g += line(-d.thin * k, 0, d.thin * k, 0, thin) + line(0, d.noTop ? -far : -d.thin * k, 0, d.post * k, thin);
@@ -367,6 +443,7 @@ function drawReticle(sc, rows, mag) {
     g += d.ring ? '<circle cx="0" cy="' + y + '" r="' + ((d.dot - d.ring) * k / 2) + '" fill="none" stroke-width="' + (d.ring * k) + '"/>'
       : '<circle cx="0" cy="' + y + '" r="' + (d.dot * k / 2) + '" stroke="none"/>' + line(-d.hash[i] * k / 2, y, d.hash[i] * k / 2, y, 1.3);
   });
+  if (aim && aim.hold !== null) g += '<circle cx="0" cy="' + (aim.hold * k).toFixed(2) + '" r="1.8" fill="#D33" stroke="#fff" stroke-width=".6"/>';   // point of impact
   g += "</g>";
   const labX = d.hash[d.hash.length - 1] * k / 2 + 8;
   g += '<text class="r-lab zero" x="' + (d.thin * k + 6) + '" y="-13">' + (rows && rows[0] ? dist(rows[0]) + " zero" : "zero") + "</text>";
@@ -375,6 +452,18 @@ function drawReticle(sc, rows, mag) {
     g += '<text class="r-lab" x="' + (i < d.hash.length ? labX : 10) + '" y="' + (m.moa * k + 4.5) + '">' + (i < d.hash.length ? "" : "post ") + dist(o) + "</text>";
   });
   $("reticle").innerHTML = g;
+  $("reticle").classList.toggle("deer-on", !!aim);
+  $("dial").hidden = !aim; $("deerRead").hidden = !aim;
+  if (aim) {
+    const rd = $("deerRead");
+    rd.classList.toggle("warn", aim.hold === null || Math.abs(aim.offIn) > 4);
+    if (aim.hold === null) rd.textContent = "The bullet doesn't reach " + aim.yd + " yd.";
+    else {
+      const off = Math.abs(aim.offIn) < 0.25 ? "dead on" : Math.abs(aim.offIn).toFixed(1) + " in " + (aim.offIn > 0 ? "high" : "low");
+      rd.innerHTML = "At <b>" + aim.yd + " yd</b> the bullet is " + Math.abs(aim.dropIn).toFixed(1) + " in " + (aim.dropIn >= 0 ? "below" : "above") + " the crosshair. " +
+        "Put <b>" + aim.best.label + "</b> on the vitals: hits " + off + (Math.abs(aim.offIn) > 4 ? ", outside the vitals" : "") + ".";
+    }
+  }
   $("reticleCap").textContent = sc.reticle + " reticle, " + (sc.note || "drawn from the maker's dimensions") + (mag !== sc.calMag ? " · marks scaled to " + mag + "x" : "");
 }
 
@@ -388,19 +477,17 @@ function showMag(r, sc) {
   out.style.transform = r.mag === lo ? "none" : r.mag === hi ? "translateX(-100%)" : "";
 }
 
-// Velocity in use: the Holds field (unless it's being typed in), where it came from, and the note on the Rifle tab
+// Velocity in use (read-only on the Holds tab), where it came from, and the note on the Rifle tab
 function showMv() {
   const r = rifle(), m = mvInfo(r), T = S.env.tF, src = $("mvSrc");
-  if (document.activeElement !== $("mv")) $("mv").value = m.mv > 0 ? Math.round(m.mv) : "";
+  $("mv").textContent = m.mv > 0 ? Math.round(m.mv) : "—";
   const t = Number.isFinite(T) ? Math.round(T) + "°F" : "today's temperature";
-  src.classList.remove("warn"); src.style.color = "";
-  if (m.src === "today") src.innerHTML = 'Typed for today <button type="button" class="linkbtn" id="useTable">Use chrono table</button>';
-  else if (m.src === "interp") src.textContent = "From " + m.n + " chrono velocities, interpolated to " + t + ".";
+  src.style.color = "";
+  if (m.src === "interp") src.textContent = "From " + m.n + " chrono velocities, interpolated to " + t + ".";
   else if (m.src === "extrap") { src.textContent = "From " + m.n + " chrono velocities (" + Math.round(m.lo) + "–" + Math.round(m.hi) + "°F), extended to " + t + ". Add one nearer this temperature."; src.style.color = "var(--warn)"; }
   else if (m.src === "single") src.textContent = "From your chrono velocity. Add velocities at other temperatures on the Rifle tab to adjust for temperature.";
-  else src.textContent = "Type today's velocity here, or add chrono velocities on the Rifle tab.";
-  const b = $("useTable"); if (b) b.addEventListener("click", () => { r.mvToday = null; save(); showMv(); renderHolds(); });
-  $("mvNote").textContent = (m.mv > 0 ? "At " + t + ": " + Math.round(m.mv) + " fps" + (m.src === "today" ? " (typed on the Holds tab)" : "") + ". " : "") +
+  else src.textContent = "Add your chrono velocity on the Rifle tab.";
+  $("mvNote").textContent = (m.mv > 0 ? "At " + t + ": " + Math.round(m.mv) + " fps. " : "") +
     "With two or more velocities at different temperatures, the velocity for the current temperature is read off a straight line through them.";
 }
 function buildMvRows() {
@@ -411,7 +498,7 @@ function buildMvRows() {
     const div = document.createElement("div"); div.className = "mvrow";
     div.innerHTML = '<label>Muzzle velocity <span class="u">fps</span><input data-k="mv" type="number" inputmode="decimal" step="any" value="' + (p.mv ?? "") + '"></label>' +
       '<label>Temperature <span class="u">°F</span><input data-k="t" type="text" inputmode="text" value="' + (p.t ?? "") + '"></label>' +
-      (r.mvs.length > 1 ? '<button type="button" class="x" aria-label="Remove">×</button>' : "<span></span>");
+      (r.mvs.length > 1 && editing ? '<button type="button" class="x" aria-label="Remove">×</button>' : "<span></span>");
     div.addEventListener("input", e => { const k = e.target.dataset.k; if (!k) return; p[k] = num(e.target.value.replace("−", "-")); save(); showMv(); renderHolds(); });
     const x = div.querySelector(".x"); if (x) x.addEventListener("click", () => { r.mvs.splice(i, 1); save(); buildMvRows(); showMv(); renderHolds(); });
     box.appendChild(div);
@@ -422,12 +509,13 @@ function renderHolds() {
   const r = rifle(), sc = scopeOf(r), msg = $("holdMsg"), table = $("holdTable");
   showMag(r, sc); showMv();
   $("rifleLine").textContent = r.model.toUpperCase() + " " + (r.bc > 0 ? r.bc.toFixed(3) : "—") + " · zero " + (r.zero || "—") + " yd · sight " + (r.sight || 0) + " in · " + sc.name.split(" · ")[1];
+  $("deerBtn").setAttribute("aria-pressed", S.deer.on); renderDial();
   if (!ready(r)) {
-    msg.textContent = "Fill in velocity here, and BC, zero and sight height on the Rifle tab.";
-    msg.hidden = false; table.innerHTML = ""; drawReticle(sc, null, r.mag); return;
+    msg.textContent = "Fill in velocity, BC, zero and sight height on the Rifle tab.";
+    msg.hidden = false; table.innerHTML = ""; lastRows = null; drawReticle(sc, null, r.mag); return;
   }
   msg.hidden = true;
-  const rows = scopeHolds(r, sc);
+  const rows = lastRows = scopeHolds(r, sc);
   let h = '<thead><tr><th>Mark</th><th>Hold<span class="u">MOA</span></th><th>Range<span class="u">yd</span></th><th>Drop<span class="u">in</span></th>' +
     '<th>Vel<span class="u">fps</span></th><th>Wind<span class="u">mph</span></th></tr></thead><tbody>';
   rows.forEach(o => {
@@ -492,7 +580,16 @@ function showRifle() {
   $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc ?? ""; $("rModel").value = r.model;
   $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? "";
   $("bcNote").textContent = r.bcNote || "";
+  setEditing(editing);
+}
+// The Rifle tab is read-only until Edit; Save locks it again (changes save as they're typed)
+let editing = false;
+function setEditing(on) {
+  editing = on;
+  $("editRifle").textContent = on ? "Save" : "Edit";
   buildMvRows();
+  document.querySelectorAll("#tab-rifle input, #tab-rifle select").forEach(el => { el.disabled = !on; });
+  $("addMv").hidden = !on;
 }
 function rifleInput(e) {
   const r = rifle(), id = e.target.id;
@@ -500,7 +597,6 @@ function rifleInput(e) {
   else if (id === "rScope") { r.scope = e.target.value; r.mag = scopeOf(r).calMag; }
   else if (id === "rModel") r.model = e.target.value;
   else if (id === "rBc") { r.bc = num(e.target.value); r.bcNote = ""; $("bcNote").textContent = ""; }
-  else if (id === "mv") r.mvToday = num(e.target.value);   // blank goes back to the chrono table
   else if (id === "rZero") r.zero = num(e.target.value);
   else if (id === "rSight") r.sight = num(e.target.value);
   save(); renderHolds();
@@ -594,19 +690,40 @@ function runCheck(fit) {
 /* ---------- wiring ---------- */
 function showAll() { fillRifleSel(); showRifle(); showEnv(); renderHolds(); buildChecks(); $("chkOut").hidden = true; }
 const sc0 = $("rScope"); SCOPES.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sc0.appendChild(o); });
-["rName", "rScope", "rBc", "rModel", "rZero", "rSight", "mv"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
+["rName", "rScope", "rBc", "rModel", "rZero", "rSight"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
 ["tF", "pIn", "alt"].forEach(id => $(id).addEventListener("input", envInput));
 $("mag").addEventListener("input", e => { rifle().mag = Number(e.target.value); save(); renderHolds(); });
-$("rifleSel").addEventListener("change", e => { S.cur = e.target.value; save(); showAll(); });
+$("rifleSel").addEventListener("change", e => { S.cur = e.target.value; editing = false; save(); showAll(); });
 $("wxBtn").addEventListener("click", () => getWeather(false));
-$("newRifle").addEventListener("click", () => { const r = newRifle("New rifle"); S.rifles.push(r); S.cur = r.id; save(); showAll(); $("rName").focus(); });
-$("copyRifle").addEventListener("click", () => { const r = newRifle(null, rifle()); S.rifles.push(r); S.cur = r.id; save(); showAll(); });
+$("newRifle").addEventListener("click", () => { const r = newRifle("New rifle"); S.rifles.push(r); S.cur = r.id; editing = true; save(); showAll(); $("rName").focus(); });
+$("copyRifle").addEventListener("click", () => { const r = newRifle(null, rifle()); S.rifles.push(r); S.cur = r.id; editing = true; save(); showAll(); });
+$("editRifle").addEventListener("click", () => { setEditing(!editing); if (!editing) { save(); showAll(); } });
 $("delRifle").addEventListener("click", () => {
-  if (S.rifles.length < 2) { alert("This is the only rifle. Add another before deleting it."); return; }
-  if (!confirm("Delete " + (rifle().name || "this rifle") + "?")) return;
-  S.rifles = S.rifles.filter(r => r.id !== S.cur); S.cur = S.rifles[0].id; save(); showAll();
+  const name = rifle().name || "this rifle";
+  if (S.rifles.length < 2) { alert("“" + name + "” is the only rifle. Add another before deleting it."); return; }
+  if (!confirm("Delete “" + name + "”? Its velocities and checks go with it. This can't be undone.")) return;
+  S.rifles = S.rifles.filter(r => r.id !== S.cur); S.cur = S.rifles[0].id; editing = false; save(); showAll();
 });
-$("mv").addEventListener("blur", showMv);
+$("deerBtn").addEventListener("click", () => { S.deer.on = !S.deer.on; save(); renderHolds(); });
+(() => {   // distance dial: drag up for farther, down for closer; tap a number; mouse wheel or arrow keys on a computer
+  const dial = $("dial"); let drag = null;
+  dial.addEventListener("pointerdown", e => { drag = { y: e.clientY, yd: S.deer.yd, moved: false }; dial.setPointerCapture(e.pointerId); });
+  dial.addEventListener("pointermove", e => {
+    if (!drag) return;
+    const dy = drag.y - e.clientY;
+    if (Math.abs(dy) > 5) drag.moved = true;
+    if (drag.moved) setDeerYd(drag.yd + Math.round(dy / 16) * 5);
+  });
+  dial.addEventListener("pointerup", e => {
+    if (drag && !drag.moved) { const it = document.elementFromPoint(e.clientX, e.clientY); const v = it && it.closest(".d-item") && it.closest(".d-item").dataset.v; if (v) setDeerYd(Number(v)); }
+    drag = null;
+  });
+  dial.addEventListener("pointercancel", () => { drag = null; });
+  dial.addEventListener("wheel", e => { e.preventDefault(); setDeerYd(S.deer.yd + (e.deltaY > 0 ? 5 : -5)); }, { passive: false });
+  dial.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" || e.key === "ArrowDown") { e.preventDefault(); setDeerYd(S.deer.yd + (e.key === "ArrowUp" ? 5 : -5)); }
+  });
+})();
 $("addMv").addEventListener("click", () => { rifle().mvs.push({ mv: null, t: null }); save(); buildMvRows(); const ins = $("mvRows").querySelectorAll("input[data-k=mv]"); ins[ins.length - 1].focus(); });
 $("addChk").addEventListener("click", () => { rifle().checks.push({ yd: "", held: "m1", moa: "", off: "" }); save(); buildChecks(); });
 $("runChk").addEventListener("click", () => runCheck(false));
@@ -614,6 +731,7 @@ $("fitBc").addEventListener("click", () => runCheck(true));
 document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("click", () => {
   document.querySelectorAll("nav.tabs button").forEach(x => x.classList.toggle("on", x === b));
   ["holds", "rifle", "correct"].forEach(t => { $("tab-" + t).hidden = t !== b.dataset.tab; });
+  if (b.dataset.tab !== "rifle" && editing) { setEditing(false); save(); showAll(); }   // leaving the Rifle tab locks it
   if (b.dataset.tab === "correct") buildChecks();
   window.scrollTo(0, 0);
 }));
