@@ -76,8 +76,8 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .deer-on .r-field { fill: #CFDBE3; }
 .deer-on .r-lab, .deer-on .r-lab.zero { fill: #1B1B1B; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 3px; }
 .grass { fill: #7C8A52; }
-.d-body { fill: #8B6E4E; } .d-far { fill: #6A5239; } .d-white { fill: #F1ECE2; } .d-dark { fill: #1E1A16; }
-.d-antler { stroke: #B9A47C; stroke-width: 1.3; } .d-antler.far { stroke: #8F7D5A; stroke-width: 1.1; }
+.d-body { fill: url(#dGrad); } .d-far { fill: #6A5239; } .d-white { fill: #F1ECE2; } .d-dark { fill: #1E1A16; }
+.d-antler { stroke: #C2AE86; stroke-width: 1.05; } .d-antler.far { stroke: #8F7D5A; stroke-width: .95; }
 .zoomcol { flex: 0 0 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
 .zoomcol span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .zoomcol button { width: 42px; height: 42px; padding: 0; font-size: 24px; line-height: 1; }
@@ -380,28 +380,32 @@ function scopeHolds(r, sc) {
 
 /* ---------- sight picture: true field of view, deer overlay, zoom ---------- */
 // Broadside whitetail buck (8 points) facing left, in inches, origin on the heart-lung center (vitals ~9 in across).
-// Proportions: shoulder height 38.5 in (withers y = -11.5, ground y = +27), chest depth 19.5 in, legs 19 in,
-// point of shoulder to buttock ~46 in, head ~14 in, antlers ~22 in above the poll.
+// Proportions from broadside buck targets: chest depth 17 in (back y = -10, brisket y = +7), legs 19 in (ground y = +26),
+// chest to rump ~41 in, poll ~9 in above the back, nose ~2.5 in above it, antlers ~13 in above the poll.
 const DEER_SVG =
+  '<defs><linearGradient id="dGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#76593D"/><stop offset=".7" stop-color="#937352"/><stop offset="1" stop-color="#A88A66"/></linearGradient></defs>' +
   // far-side antler and legs, darker, behind the body
-  '<path class="d-antler far" d="M-23.5,-26.6 C-21.6,-32 -21.6,-37 -23,-39.6 C-25,-42.6 -29,-43.6 -33,-42.6 M-23.1,-39.4 C-22.8,-43 -22.4,-45.6 -21.9,-48 M-27.4,-42.9 C-27.2,-45.5 -26.9,-47.6 -26.6,-49.4" fill="none" stroke-linecap="round"/>' +
-  '<path class="d-far" d="M-4.8,8.8 C-4.3,12 -4,15 -3.9,18.3 C-3.8,21 -3.7,23 -3.7,24.5 L-3.3,27 L-1.1,27 L-1.2,24.5 C-1.1,22 -1,20 -0.9,18.3 C-0.6,15 -0.3,12 0,8.8 Z ' +
-    'M20,7 C22,10 24,13 25,15.5 C25.4,19 25.6,22 25.6,24.5 L26.1,27 L23.9,27 L23.6,24.5 C23.3,21 22.8,18.5 22,16.5 C20.8,13.5 19,11 18,8 Z"/>' +
-  '<path class="d-body" d="M-10,8.3 C-14,7.5 -16.5,3 -16,-2 C-15.8,-6 -16.5,-9 -18,-12 C-19.5,-14 -21.5,-15.5 -24.5,-17 ' +
-    'C-27.5,-16.9 -30.3,-16.5 -32.3,-16.4 C-33.6,-16.4 -34.7,-17.2 -34.7,-18.4 C-34.6,-19.5 -34,-20.2 -33.2,-20.4 C-30.6,-21.8 -28,-24 -26,-25.4 ' +
-    'C-25,-26.1 -24,-26.6 -23.2,-26.5 L-18,-32.5 C-17.3,-32.6 -17.6,-31.2 -18.5,-29.8 L-20.8,-25 ' +
-    'C-15,-24 -9,-17 -5,-12.5 C-2,-11.2 3,-11 8,-11 C15,-11 21,-11.8 26,-11.3 C28.5,-11 30.5,-10 31,-8.5 ' +
-    'C32,-4 32,1 30.6,5 C29.6,8 29.4,10 30.2,12 C30.8,13.2 31.2,14.2 30.8,15.5 C30.2,18.5 29.7,21.5 29.6,24 L30.2,27 L27.7,27 L27.6,24 ' +
-    'C27.7,21 28,18 28.2,16 C28.2,14.5 27.6,13 26.6,11.2 C25.8,9.6 25.2,8 24.5,7 C23.8,6.5 23,6.3 22,6.3 C17,7.5 10,8.8 2,8.8 C0.5,8.8 -1,8.8 -2.6,9 ' +
-    'C-2.8,13 -3.2,17 -3.3,18.5 C-3.5,21 -3.6,23 -3.6,24.5 L-3.1,27 L-6,27 L-5.9,24.5 C-5.9,22 -6,20 -6.2,18.2 ' +
-    'C-6.6,15 -7,11.5 -7.6,9 C-8.4,8.6 -9.2,8.4 -10,8.3 Z"/>' +
-  // white throat patch, white-edged tail, black nose, eye
-  '<path class="d-white" d="M-23.4,-16.6 C-22,-16.4 -21,-15.4 -20.7,-14 C-21.8,-14.2 -23,-15 -23.4,-16.6 Z ' +
-    'M31,-8.5 C32.2,-6.5 33.2,-4.5 33.4,-2.6 C33.2,-1.4 32.2,-1.4 31.4,-2.4 C31.4,-4.5 31.2,-6.5 31,-8.5 Z"/>' +
-  '<circle class="d-dark" cx="-34" cy="-18.6" r="0.75"/><circle class="d-dark" cx="-27.6" cy="-23.4" r="0.65"/>' +
-  // near-side antler: main beam sweeping up, back and forward, brow tine, G2, G3, G4
-  '<path class="d-antler" d="M-24.5,-26.5 C-23.5,-31 -23,-35 -24.5,-38.5 C-26.5,-42.5 -31,-43.5 -35.5,-41.5 C-37,-40.8 -38,-39.5 -38.5,-38 ' +
-    'M-24.4,-30 L-26,-33.5 M-24.6,-38.8 C-24.3,-42 -23.8,-45 -23,-48.5 M-29,-42.6 C-29,-45 -28.8,-47.5 -28.3,-50 M-33.8,-42.2 C-33.9,-44 -34,-45.3 -34.2,-46.5" ' +
+  '<path class="d-antler far" d="M-17.4,-20 C-16.6,-23 -17.2,-25.3 -19.4,-26.4 C-22,-27.6 -25.3,-27.6 -28,-26.6 M-19.7,-26.5 C-19.7,-28.6 -19.4,-31 -18.8,-33.6 M-23.6,-27.3 C-23.6,-29.2 -23.4,-31.1 -23,-32.8" fill="none" stroke-linecap="round"/>' +
+  '<path class="d-far" d="M-3.5,7 C-3.3,10.61 -3,13.29 -2.8,15.08 L-2.6,21.77 L-2.2,24 L0.5,26 L0.2,23.5 L0.1,16 C0.3,13 0.6,9.72 1,7.2 Z ' +
+    'M16,6.5 C18.5,9 20.5,11.06 21.5,12.84 L21.8,23.5 L22.3,26 L20,26 L19.8,23.5 L19.4,15.5 C18,13 15.5,9.72 14.5,7 Z"/>' +
+  '<path class="d-body" fill="url(#dGrad)" d="M-6.5,6 C-9,5.4 -11,3 -11.5,0 C-11.8,-1 -11.7,-1.8 -11.5,-2.5 ' +
+    'C-12.3,-5 -14,-8 -16,-10 C-16.8,-11 -17.6,-11.8 -18.5,-12.5 C-21,-12 -23.5,-11.4 -26.5,-11.2 C-27.4,-11.2 -28.1,-11.7 -28.5,-12.4 ' +
+    'C-28.8,-13.2 -28.4,-14 -27.3,-14.4 C-25.5,-15.2 -23,-16.6 -20.5,-18 C-19.5,-18.6 -18.5,-19.1 -17.5,-19.3 ' +
+    'L-16.5,-21 C-15.3,-23 -14,-24.6 -12.6,-25.2 C-12,-25 -12,-24.3 -12.2,-23.8 C-12.6,-21.8 -13.5,-19.8 -14.5,-18.3 ' +
+    'C-11,-16.5 -8,-13 -6.5,-12.3 C-5.3,-11.4 -4.2,-10.6 -3,-10.2 C1,-9.8 6,-9.7 11,-9.9 C16,-10.1 20,-10.6 23,-10.6 C24.6,-10.5 25.8,-10.1 26.5,-9.5 ' +
+    'C28,-8.6 29.2,-6.5 29.6,-4 C30,-1.5 29.8,1 29,3 C28.6,4.5 28.2,5.6 27.8,6.5 C27.3,8 27.2,9.18 27.6,10.43 C28,11.8 28.4,11.86 28.3,12.4 ' +
+    'L27.6,19 L27.3,23.5 L27.9,26 L25.6,26 L25.3,23.5 L25.6,19 L25.8,14.5 C25.7,13.6 25.5,12.4 25.2,12.04 C24.6,11.5 24,10.17 23.5,9.27 ' +
+    'C22.8,8.3 22.2,7.4 21.5,6.8 C20.9,6.2 20.2,5.8 19.5,5.5 C15,6.1 10,6.9 4,7.3 C2,7.4 0.5,7.4 -1,7.3 ' +
+    'C-1.1,8.83 -1.2,10.17 -1.3,11.51 C-1.4,12.67 -1.5,13.65 -1.6,14.63 L-1.6,16.41 L-1.7,21.77 L-1.3,24 L-4.2,24 L-3.9,21.77 L-3.9,16.41 ' +
+    'C-4,15.79 -4.1,15.16 -4.3,14.63 C-4.5,13.29 -4.7,11.95 -5,10.61 C-5.4,9.01 -5.9,7.49 -6.5,6 Z"/>' +
+  // white throat patch, muzzle band, belly line, tail edge; black nose and eye
+  '<path class="d-white" d="M-17.2,-11.6 C-16.2,-11.4 -15.3,-10.4 -14.9,-9 C-15.2,-8.2 -16.1,-8.4 -16.6,-9.2 C-17,-9.9 -17.2,-10.8 -17.2,-11.6 Z ' +
+    'M-0.8,6.5 C4,6.6 10,6.2 18.8,4.9 L19.5,5.5 C15,6.1 10,6.9 4,7.3 C2,7.4 0.5,7.4 -1,7.3 Z ' +
+    'M28.5,-6.6 C29.4,-4 29.6,-0.5 28.9,2.8 L28.2,2.3 C28.6,-0.6 28.5,-3.8 27.9,-6.3 Z"/>' +
+  '<circle class="d-dark" cx="-28" cy="-12.7" r="0.8"/><circle class="d-dark" cx="-22" cy="-16.1" r="0.6"/>' +
+  // near-side antler: main beam up, back and forward past the nose, brow tine, G2, G3, G4
+  '<path class="d-antler" d="M-18.6,-19.6 C-17.8,-22.5 -18.6,-24.8 -20.8,-25.8 C-23.5,-27 -27,-27 -29.8,-26 C-31.2,-25.4 -32.2,-24.3 -32.6,-23 ' +
+    'M-18.4,-21.6 L-19.8,-24.2 M-21,-25.9 C-21.1,-28 -20.9,-30.5 -20.3,-33.2 M-25,-26.7 C-25.1,-28.6 -25,-30.5 -24.6,-32.4 M-28.6,-26.4 C-28.9,-27.6 -29.1,-28.7 -29.3,-29.8" ' +
     'fill="none" stroke-linecap="round"/>';
 const DIAL_MIN = 25, DIAL_MAX = 800;
 const ZOOMS = [1, 1.5, 2, 3, 4, 6, 8, 10];
@@ -461,7 +465,7 @@ function drawReticle(sc, rows, mag) {
   if (aim && aim.hold !== null) {
     // the deer sits where the bullet lands: vitals on the hold point, drawn to scale for its distance
     const hk = aim.hold * u, s = u / (MOA_IN * aim.yd / 100);
-    g += '<rect class="grass" stroke="none" x="-' + 3 * R + '" y="' + (hk + 27 * s).toFixed(2) + '" width="' + 6 * R + '" height="' + 6 * R + '"/>' +
+    g += '<rect class="grass" stroke="none" x="-' + 3 * R + '" y="' + (hk + 24 * s).toFixed(2) + '" width="' + 6 * R + '" height="' + 6 * R + '"/>' +
       '<g stroke="none" transform="translate(0 ' + hk.toFixed(2) + ") scale(" + s.toFixed(4) + ')">' + DEER_SVG + "</g>" +
       '<circle class="vital" cx="0" cy="' + hk.toFixed(2) + '" r="' + (4.5 * s).toFixed(2) + '"/>';
   }
