@@ -77,7 +77,6 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .deer-on .r-lab, .deer-on .r-lab.zero { fill: #1B1B1B; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 3px; }
 .grass { fill: #7C8A52; }
 .d-body { fill: url(#dGrad); } .d-far { fill: #6A5239; } .d-white { fill: #F1ECE2; } .d-dark { fill: #1E1A16; }
-.d-antler { stroke: #C2AE86; stroke-width: 1.05; } .d-antler.far { stroke: #8F7D5A; stroke-width: .95; }
 .zoomcol { flex: 0 0 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
 .zoomcol span { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .zoomcol button { width: 42px; height: 42px; padding: 0; font-size: 24px; line-height: 1; }
@@ -379,13 +378,12 @@ function scopeHolds(r, sc) {
 }
 
 /* ---------- sight picture: true field of view, deer overlay, zoom ---------- */
-// Broadside whitetail buck (8 points) facing left, in inches, origin on the heart-lung center (vitals ~9 in across).
+// Broadside whitetail deer (no antlers) facing left, in inches, origin on the heart-lung center (vitals ~9 in across).
 // Proportions from broadside buck targets: chest depth 17 in (back y = -10, brisket y = +7), legs 19 in (ground y = +26),
-// chest to rump ~41 in, poll ~9 in above the back, nose ~2.5 in above it, antlers ~13 in above the poll.
+// chest to rump ~41 in, poll ~9 in above the back, nose ~2.5 in above it.
 const DEER_SVG =
   '<defs><linearGradient id="dGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#76593D"/><stop offset=".7" stop-color="#937352"/><stop offset="1" stop-color="#A88A66"/></linearGradient></defs>' +
-  // far-side antler and legs, darker, behind the body
-  '<path class="d-antler far" d="M-17.4,-20 C-16.6,-23 -17.2,-25.3 -19.4,-26.4 C-22,-27.6 -25.3,-27.6 -28,-26.6 M-19.7,-26.5 C-19.7,-28.6 -19.4,-31 -18.8,-33.6 M-23.6,-27.3 C-23.6,-29.2 -23.4,-31.1 -23,-32.8" fill="none" stroke-linecap="round"/>' +
+  // far-side legs, darker, behind the body
   '<path class="d-far" d="M-3.5,7 C-3.3,10.61 -3,13.29 -2.8,15.08 L-2.6,21.77 L-2.2,24 L0.5,26 L0.2,23.5 L0.1,16 C0.3,13 0.6,9.72 1,7.2 Z ' +
     'M16,6.5 C18.5,9 20.5,11.06 21.5,12.84 L21.8,23.5 L22.3,26 L20,26 L19.8,23.5 L19.4,15.5 C18,13 15.5,9.72 14.5,7 Z"/>' +
   '<path class="d-body" fill="url(#dGrad)" d="M-6.5,6 C-9,5.4 -11,3 -11.5,0 C-11.8,-1 -11.7,-1.8 -11.5,-2.5 ' +
@@ -402,11 +400,7 @@ const DEER_SVG =
   '<path class="d-white" d="M-17.2,-11.6 C-16.2,-11.4 -15.3,-10.4 -14.9,-9 C-15.2,-8.2 -16.1,-8.4 -16.6,-9.2 C-17,-9.9 -17.2,-10.8 -17.2,-11.6 Z ' +
     'M-0.8,6.5 C4,6.6 10,6.2 18.8,4.9 L19.5,5.5 C15,6.1 10,6.9 4,7.3 C2,7.4 0.5,7.4 -1,7.3 Z ' +
     'M28.5,-6.6 C29.4,-4 29.6,-0.5 28.9,2.8 L28.2,2.3 C28.6,-0.6 28.5,-3.8 27.9,-6.3 Z"/>' +
-  '<circle class="d-dark" cx="-28" cy="-12.7" r="0.8"/><circle class="d-dark" cx="-22" cy="-16.1" r="0.6"/>' +
-  // near-side antler: main beam up, back and forward past the nose, brow tine, G2, G3, G4
-  '<path class="d-antler" d="M-18.6,-19.6 C-17.8,-22.5 -18.6,-24.8 -20.8,-25.8 C-23.5,-27 -27,-27 -29.8,-26 C-31.2,-25.4 -32.2,-24.3 -32.6,-23 ' +
-    'M-18.4,-21.6 L-19.8,-24.2 M-21,-25.9 C-21.1,-28 -20.9,-30.5 -20.3,-33.2 M-25,-26.7 C-25.1,-28.6 -25,-30.5 -24.6,-32.4 M-28.6,-26.4 C-28.9,-27.6 -29.1,-28.7 -29.3,-29.8" ' +
-    'fill="none" stroke-linecap="round"/>';
+  '<circle class="d-dark" cx="-28" cy="-12.7" r="0.8"/><circle class="d-dark" cx="-22" cy="-16.1" r="0.6"/>';
 const DIAL_MIN = 25, DIAL_MAX = 800;
 const ZOOMS = [1, 1.5, 2, 3, 4, 6, 8, 10];
 let lastRows = null;   // last computed holds, so the dial and zoom only redraw the picture
