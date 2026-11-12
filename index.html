@@ -88,6 +88,9 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .chk { display: grid; grid-template-columns: 1fr 1.6fr 1fr auto; gap: 6px; align-items: end; padding: 8px 0; border-bottom: 1px solid var(--rule); }
 .chk .x { padding: 9px 11px; border-color: var(--rule); color: var(--muted); }
 .chk .moaBox { grid-column: 2; }
+.mvrow { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: end; margin-bottom: 8px; }
+.mvrow .x, .linkbtn { padding: 9px 11px; border-color: var(--rule); color: var(--muted); }
+.linkbtn { padding: 2px 8px; font-size: 13px; margin-left: 6px; }
 .ok { color: var(--good); } .badtxt { color: var(--bad); }
 .fit { margin-top: 10px; padding: 10px; border-radius: 8px; background: var(--brass-soft); font-size: 14px; }
 .fit button { margin-top: 8px; }
@@ -109,6 +112,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
   <section id="tab-holds">
     <div class="card mv">
       <div class="line"><b>Muzzle velocity</b><input id="mv" type="number" inputmode="decimal" step="1" aria-label="Muzzle velocity in fps"><span>fps</span></div>
+      <p class="sub" id="mvSrc"></p>
       <p class="sub" id="rifleLine"></p>
     </div>
     <div class="card">
@@ -145,13 +149,18 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
       <div class="grid2">
         <label style="grid-column: 1 / -1">Name<input id="rName" type="text" autocomplete="off"></label>
         <label style="grid-column: 1 / -1">Scope<select id="rScope"></select></label>
+        <label style="grid-column: 1 / -1">Sight height <span class="u">in, bore to scope center</span><input id="rSight" type="number" inputmode="decimal" step="any"></label>
+        <label style="grid-column: 1 / -1">Zero <span class="u">yd</span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
         <label>Ballistic coefficient<input id="rBc" type="number" inputmode="decimal" step="any"></label>
         <label>Drag model<select id="rModel"><option value="g1">G1</option><option value="g7">G7</option></select></label>
-        <label>Muzzle velocity <span class="u">fps</span><input id="rMv" type="number" inputmode="decimal" step="any"></label>
-        <label>Zero <span class="u">yd</span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
-        <label>Sight height <span class="u">in, bore to scope center</span><input id="rSight" type="number" inputmode="decimal" step="any"></label>
       </div>
       <p class="note" id="bcNote"></p>
+    </div>
+    <div class="card">
+      <h2>Muzzle velocity by temperature</h2>
+      <div id="mvRows"></div>
+      <button id="addMv" type="button" class="quiet">+ Add MV</button>
+      <p class="note" id="mvNote"></p>
     </div>
     <div class="row">
       <button id="newRifle" type="button">New rifle</button>
@@ -165,7 +174,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
   <section id="tab-correct" hidden>
     <div class="card">
       <h2>Check or correct the BC</h2>
-      <p class="note" style="margin-top:0">Shoot a group at a known distance holding a mark, then enter where its center landed: inches above (+) or below (−) the aim point. Use your chronographed velocity on the Holds tab; the BC is what gets corrected. Points past 300 yd tell the most.</p>
+      <p class="note" style="margin-top:0">Shoot a group at a known distance holding a mark, then enter where its center landed: inches above (+) or below (−) the aim point. The velocity comes from your chrono table (or what you typed on the Holds tab); the BC is what gets corrected. Points past 300 yd tell the most.</p>
       <div id="chkRows"></div>
       <div class="row" style="margin-top:10px">
         <button id="addChk" type="button" class="quiet">Add distance</button>
@@ -265,10 +274,24 @@ const SCOPES = [{
 
 /* ---------- state (saved on this phone) ---------- */
 const KEY = "scope-holds-v1";
-const newRifle = (name, from) => Object.assign({ name: "My rifle", scope: SCOPES[0].id, mag: 9, bc: 0.45, model: "g1", mv: 2700, zero: 100, sight: 1.5, checks: [] },
+// mvs: chronographed muzzle velocities with the temperature they were shot at; mvToday: a velocity typed on the Holds tab
+const newRifle = (name, from) => Object.assign({ name: "My rifle", scope: SCOPES[0].id, mag: 9, bc: 0.45, model: "g1", mvs: [{ mv: 2700, t: 59 }], mvToday: null, zero: 100, sight: 1.5, checks: [] },
   from ? JSON.parse(JSON.stringify(from)) : {}, { id: "r" + Date.now().toString(36), name: name || (from ? from.name + " copy" : "My rifle") });
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.rifles && s.rifles.length) return s; } catch (e) {} return null; })();
 if (!S) { const r = newRifle(); S = { cur: r.id, rifles: [r], env: { tF: 59, pIn: null, alt: 0, at: null } }; }
+// rifles saved before the velocity table had one velocity (mv)
+S.rifles.forEach(r => { if (!Array.isArray(r.mvs)) { r.mvs = [{ mv: r.mv > 0 ? r.mv : null, t: null }]; r.mvToday = null; delete r.mv; } });
+
+// Velocity for today's temperature: straight line through the chrono points, extended past the ends.
+function mvInfo(r) {
+  if (r.mvToday > 0) return { mv: r.mvToday, src: "today" };
+  const T = S.env.tF, all = r.mvs.filter(p => p.mv > 0), pts = all.filter(p => Number.isFinite(p.t)).sort((a, b) => a.t - b.t);
+  if (pts.length < 2 || !Number.isFinite(T)) return all.length ? { mv: (pts[0] || all[0]).mv, src: "single" } : { mv: null, src: "none" };
+  let i = 1;                               // segment [i-1, i]: first one below the coldest point, last one above the hottest
+  while (i < pts.length - 1 && T > pts[i].t) i++;
+  const a = pts[i - 1], b = pts[i], f = b.t !== a.t ? (T - a.t) / (b.t - a.t) : 0.5;
+  return { mv: a.mv + f * (b.mv - a.mv), src: T < pts[0].t || T > pts[pts.length - 1].t ? "extrap" : "interp", n: pts.length, lo: pts[0].t, hi: pts[pts.length - 1].t };
+}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} };
 const rifle = () => S.rifles.find(r => r.id === S.cur) || S.rifles[0];
 const scopeOf = r => SCOPES.find(s => s.id === r.scope) || SCOPES[0];
@@ -276,10 +299,10 @@ const num = v => { const n = parseFloat(v); return Number.isFinite(n) ? n : null
 
 function params(r, bc) {
   const e = S.env, T = Number.isFinite(e.tF) ? e.tF : 59, P = e.pIn > 0 ? e.pIn : stdPressure(e.alt > 0 ? e.alt : 0);
-  return { bc: bc || r.bc, table: DRAG[r.model] || DRAG.g1, mv: r.mv, sight: r.sight || 0,
+  return { bc: bc || r.bc, table: DRAG[r.model] || DRAG.g1, mv: mvInfo(r).mv, sight: r.sight || 0,
     densityRatio: (P / 29.92) * (518.67 / (T + 459.67)), sound: 49.0223 * Math.sqrt(T + 459.67), windX: 0, windZ: 0 };
 }
-const ready = r => r.bc > 0 && r.mv > 0 && r.zero > 0 && r.sight >= 0 && Number.isFinite(S.env.tF);
+const ready = r => r.bc > 0 && mvInfo(r).mv > 0 && r.zero > 0 && r.sight >= 0 && Number.isFinite(S.env.tF);
 const holdOf = row => -row.dropFt * 12 / (MOA_IN * row.ft / 300);   // MOA below the line of sight
 
 /* ---------- holds ---------- */
@@ -365,9 +388,39 @@ function showMag(r, sc) {
   out.style.transform = r.mag === lo ? "none" : r.mag === hi ? "translateX(-100%)" : "";
 }
 
+// Velocity in use: the Holds field (unless it's being typed in), where it came from, and the note on the Rifle tab
+function showMv() {
+  const r = rifle(), m = mvInfo(r), T = S.env.tF, src = $("mvSrc");
+  if (document.activeElement !== $("mv")) $("mv").value = m.mv > 0 ? Math.round(m.mv) : "";
+  const t = Number.isFinite(T) ? Math.round(T) + "°F" : "today's temperature";
+  src.classList.remove("warn"); src.style.color = "";
+  if (m.src === "today") src.innerHTML = 'Typed for today <button type="button" class="linkbtn" id="useTable">Use chrono table</button>';
+  else if (m.src === "interp") src.textContent = "From " + m.n + " chrono velocities, interpolated to " + t + ".";
+  else if (m.src === "extrap") { src.textContent = "From " + m.n + " chrono velocities (" + Math.round(m.lo) + "–" + Math.round(m.hi) + "°F), extended to " + t + ". Add one nearer this temperature."; src.style.color = "var(--warn)"; }
+  else if (m.src === "single") src.textContent = "From your chrono velocity. Add velocities at other temperatures on the Rifle tab to adjust for temperature.";
+  else src.textContent = "Type today's velocity here, or add chrono velocities on the Rifle tab.";
+  const b = $("useTable"); if (b) b.addEventListener("click", () => { r.mvToday = null; save(); showMv(); renderHolds(); });
+  $("mvNote").textContent = (m.mv > 0 ? "At " + t + ": " + Math.round(m.mv) + " fps" + (m.src === "today" ? " (typed on the Holds tab)" : "") + ". " : "") +
+    "With two or more velocities at different temperatures, the velocity for the current temperature is read off a straight line through them.";
+}
+function buildMvRows() {
+  const r = rifle(), box = $("mvRows");
+  if (!r.mvs.length) r.mvs.push({ mv: null, t: null });
+  box.innerHTML = "";
+  r.mvs.forEach((p, i) => {
+    const div = document.createElement("div"); div.className = "mvrow";
+    div.innerHTML = '<label>Muzzle velocity <span class="u">fps</span><input data-k="mv" type="number" inputmode="decimal" step="any" value="' + (p.mv ?? "") + '"></label>' +
+      '<label>Temperature <span class="u">°F</span><input data-k="t" type="text" inputmode="text" value="' + (p.t ?? "") + '"></label>' +
+      (r.mvs.length > 1 ? '<button type="button" class="x" aria-label="Remove">×</button>' : "<span></span>");
+    div.addEventListener("input", e => { const k = e.target.dataset.k; if (!k) return; p[k] = num(e.target.value.replace("−", "-")); save(); showMv(); renderHolds(); });
+    const x = div.querySelector(".x"); if (x) x.addEventListener("click", () => { r.mvs.splice(i, 1); save(); buildMvRows(); showMv(); renderHolds(); });
+    box.appendChild(div);
+  });
+}
+
 function renderHolds() {
   const r = rifle(), sc = scopeOf(r), msg = $("holdMsg"), table = $("holdTable");
-  showMag(r, sc);
+  showMag(r, sc); showMv();
   $("rifleLine").textContent = r.model.toUpperCase() + " " + (r.bc > 0 ? r.bc.toFixed(3) : "—") + " · zero " + (r.zero || "—") + " yd · sight " + (r.sight || 0) + " in · " + sc.name.split(" · ")[1];
   if (!ready(r)) {
     msg.textContent = "Fill in velocity here, and BC, zero and sight height on the Rifle tab.";
@@ -437,8 +490,9 @@ function fillRifleSel() {
 function showRifle() {
   const r = rifle();
   $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc ?? ""; $("rModel").value = r.model;
-  $("rMv").value = r.mv ?? ""; $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? ""; $("mv").value = r.mv ?? "";
+  $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? "";
   $("bcNote").textContent = r.bcNote || "";
+  buildMvRows();
 }
 function rifleInput(e) {
   const r = rifle(), id = e.target.id;
@@ -446,7 +500,7 @@ function rifleInput(e) {
   else if (id === "rScope") { r.scope = e.target.value; r.mag = scopeOf(r).calMag; }
   else if (id === "rModel") r.model = e.target.value;
   else if (id === "rBc") { r.bc = num(e.target.value); r.bcNote = ""; $("bcNote").textContent = ""; }
-  else if (id === "rMv" || id === "mv") { r.mv = num(e.target.value); $(id === "mv" ? "rMv" : "mv").value = e.target.value; }
+  else if (id === "mv") r.mvToday = num(e.target.value);   // blank goes back to the chrono table
   else if (id === "rZero") r.zero = num(e.target.value);
   else if (id === "rSight") r.sight = num(e.target.value);
   save(); renderHolds();
@@ -540,7 +594,7 @@ function runCheck(fit) {
 /* ---------- wiring ---------- */
 function showAll() { fillRifleSel(); showRifle(); showEnv(); renderHolds(); buildChecks(); $("chkOut").hidden = true; }
 const sc0 = $("rScope"); SCOPES.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sc0.appendChild(o); });
-["rName", "rScope", "rBc", "rModel", "rMv", "rZero", "rSight", "mv"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
+["rName", "rScope", "rBc", "rModel", "rZero", "rSight", "mv"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
 ["tF", "pIn", "alt"].forEach(id => $(id).addEventListener("input", envInput));
 $("mag").addEventListener("input", e => { rifle().mag = Number(e.target.value); save(); renderHolds(); });
 $("rifleSel").addEventListener("change", e => { S.cur = e.target.value; save(); showAll(); });
@@ -552,6 +606,8 @@ $("delRifle").addEventListener("click", () => {
   if (!confirm("Delete " + (rifle().name || "this rifle") + "?")) return;
   S.rifles = S.rifles.filter(r => r.id !== S.cur); S.cur = S.rifles[0].id; save(); showAll();
 });
+$("mv").addEventListener("blur", showMv);
+$("addMv").addEventListener("click", () => { rifle().mvs.push({ mv: null, t: null }); save(); buildMvRows(); const ins = $("mvRows").querySelectorAll("input[data-k=mv]"); ins[ins.length - 1].focus(); });
 $("addChk").addEventListener("click", () => { rifle().checks.push({ yd: "", held: "m1", moa: "", off: "" }); save(); buildChecks(); });
 $("runChk").addEventListener("click", () => runCheck(false));
 $("fitBc").addEventListener("click", () => runCheck(true));
