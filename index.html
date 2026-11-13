@@ -67,12 +67,12 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .reticle-fig svg { width: 100%; max-width: 420px; color: var(--ink); }
 .reticle-fig figcaption { font-size: 12px; color: var(--muted); text-align: center; }
 .r-field { fill: var(--ground); stroke: var(--rule); stroke-width: 1.5; }
-.r-lab { fill: var(--brass); font: 600 13px var(--mono); paint-order: stroke; stroke: var(--ground); stroke-width: 4px; }
+.r-lab { fill: var(--brass); font: 600 15px var(--mono); paint-order: stroke; stroke: var(--ground); stroke-width: 4px; }
 .r-lab.zero { fill: var(--muted); }
 /* deer overlay: a daylight scene whatever the theme, black reticle, labels with a white halo */
 #deerBtn[aria-pressed="true"] { background: var(--brass); color: var(--ground); }
 .ret-row { display: flex; gap: 8px; width: 100%; align-items: stretch; justify-content: center; }
-.ret-row svg { flex: 1; min-width: 0; }
+.ret-row svg { flex: 1; min-width: 0; overflow: visible; }
 .deer-on { color: #111 !important; }
 .deer-on .r-field { fill: #CFDBE3; }
 .deer-on .r-lab, .deer-on .r-lab.zero { fill: #1B1B1B; paint-order: stroke; stroke: rgba(255,255,255,.85); stroke-width: 3px; }
@@ -155,7 +155,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
         <div class="ret-row">
           <div class="dial" id="dial" hidden role="slider" tabindex="0" aria-label="Distance to the deer, yards" aria-valuemin="25" aria-valuemax="800"></div>
           <svg id="reticle" viewBox="-130 -130 260 260" role="img" aria-label="Scope field of view with the distance for each holdover mark"></svg>
-          <div class="zoomcol"><span>FOV</span><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomMinus" aria-label="Zoom out">−</button></div>
+          <div class="zoomcol" id="zoomcol"><span>FOV</span><button type="button" id="zoomIn" aria-label="Zoom in">+</button><button type="button" id="zoomMinus" aria-label="Zoom out">−</button></div>
         </div>
         <div class="mag-slider">
           <output class="mag-now" id="magOut"></output>
@@ -483,32 +483,31 @@ function drawReticle(sc, rows, mag) {
   });
   if (aim && aim.hold !== null) g += '<circle cx="0" cy="' + (aim.hold * u).toFixed(2) + '" r="1.8" fill="#D33" stroke="#fff" stroke-width=".6"/>';   // point of impact
   g += "</g></g>";
-  // distance labels sit outside the clip so they never get cut off: zero above the crosshair, then each mark in view
+  // distance labels sit outside the clip so they can run past the circle: zero above the crosshair, then each mark in view
   const labX = Math.max.apply(null, d.hash) * kr / 2 + 6, inView = y => Math.abs(y - yc) < R - 2;
-  if (inView(0)) g += '<text class="r-lab zero" x="' + (d.thin * kr + 6).toFixed(1) + '" y="' + (-Math.max(6, hw + 4) - yc).toFixed(1) + '">' + (rows && rows[0] ? dist(rows[0]) + " zero" : "zero") + "</text>";
+  if (inView(0)) g += '<text class="r-lab zero" x="' + (d.thin * kr + 6).toFixed(1) + '" y="' + (-Math.max(6, hw + 5) - yc).toFixed(1) + '">' + (rows && rows[0] ? dist(rows[0]) + " zero" : "zero") + "</text>";
   sc.marks.forEach((m, i) => {
     const y = m.moa * kr, isPost = i >= d.hash.length;
     if (inView(y)) g += '<text class="r-lab" x="' + (isPost ? d.postW * kr / 2 + 5 : labX).toFixed(1) + '" y="' + (y + 4.5 - yc).toFixed(1) + '">' + (isPost ? "post " : "") + dist(rows ? rows[i + 1] : null) + "</text>";
   });
   $("reticle").innerHTML = g;
-  fitLabels(R);
+  fitLabels();
   $("reticle").classList.toggle("deer-on", !!aim);
   $("dial").hidden = !aim;
   showZoom();
   $("reticleCap").textContent = sc.reticle + " reticle, " + (sc.note || "drawn from the maker's dimensions") + " · field of view " + fovFt(sc, mag).toFixed(1) + " ft at 100 yd at " + mag + "x";
 }
 
-// Pull each label inside the circle (left if it runs past the edge, then toward the center);
-// a label that would land on the one above it is left out
-function fitLabels(R) {
+// Labels stay level with their marks and may run past the circle; one that would reach the FOV
+// buttons slides left, and one that would land on the label above it is left out
+function fitLabels() {
+  const svg = $("reticle"), box = svg.getBoundingClientRect(), upp = 260 / box.width;
+  const maxX = (($("zoomcol") || svg).getBoundingClientRect().left - 2 - box.left) * upp - 130;
   let prev = -Infinity;
-  document.querySelectorAll("#reticle .r-lab").forEach(t => {
-    const w = t.getComputedTextLength(), x0 = +t.getAttribute("x");
-    const room = y => { const e = Math.max(Math.abs(y - 10), Math.abs(y + 3)); return e < R ? Math.sqrt(R * R - e * e) - 3 - w : -Infinity; };
-    let y = Math.min(+t.getAttribute("y"), R - 4), x = Math.min(x0, room(y));
-    while (x < 4 && Math.abs(y) >= 1) { y += y > 0 ? -1 : 1; x = Math.min(x0, room(y)); }
-    if (x < 4 || y - prev < 14) { t.remove(); return; }
-    t.setAttribute("x", x.toFixed(1)); t.setAttribute("y", y.toFixed(1)); prev = y;
+  svg.querySelectorAll(".r-lab").forEach(t => {
+    const y = +t.getAttribute("y"), x = Math.min(+t.getAttribute("x"), maxX - t.getComputedTextLength());
+    if (y - prev < 14) { t.remove(); return; }
+    t.setAttribute("x", x.toFixed(1)); prev = y;
   });
 }
 
