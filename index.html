@@ -304,8 +304,10 @@ const SCOPES = [{
 /* ---------- state (saved on this phone) ---------- */
 const KEY = "scope-holds-v1";
 // mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
-const newRifle = (name, from) => Object.assign({ name: "My rifle", scope: SCOPES[0].id, mag: 9, bc: 0.45, model: "g1", mvs: [{ mv: 2700, t: 59 }], zero: 100, sight: 1.5, checks: [] },
-  from ? JSON.parse(JSON.stringify(from)) : {}, { id: "r" + Date.now().toString(36), name: name || (from ? from.name + " copy" : "My rifle") });
+// default rifle on a fresh install
+const DEF_NAME = 'Rem78 308 22"';
+const newRifle = (name, from) => Object.assign({ name: DEF_NAME, scope: SCOPES[0].id, mag: 9, bc: 0.26, model: "g7", mvs: [{ mv: 2590, t: 75 }], zero: 100, sight: 1.58, checks: [] },
+  from ? JSON.parse(JSON.stringify(from)) : {}, { id: "r" + Date.now().toString(36), name: name || (from ? from.name + " copy" : DEF_NAME) });
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.rifles && s.rifles.length) return s; } catch (e) {} return null; })();
 if (!S) { const r = newRifle(); S = { cur: r.id, rifles: [r], env: { tF: 59, pIn: null, alt: 0, at: null } }; }
 // rifles saved before the velocity table had one velocity (mv)
@@ -607,7 +609,7 @@ function fillRifleSel() {
 }
 function showRifle() {
   const r = rifle();
-  $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc ?? ""; $("rModel").value = r.model;
+  $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc > 0 ? r.bc.toFixed(3) : (r.bc ?? ""); $("rModel").value = r.model;
   $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? "";
   $("bcNote").textContent = r.bcNote || "";
   setEditing(editing);
