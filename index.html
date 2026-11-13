@@ -633,7 +633,8 @@ function getWeather(quiet) {
         alt: Math.round(j.elevation * 3.28084), at: Date.now(), hum: c.relative_humidity_2m, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, auto: true };
       save(); showEnv(); renderHolds(); if (!$("chkOut").hidden) runCheck(false);
     } catch (e) {
-      if (!quiet) wxNote("No connection." + (S.env.at ? " Still using the weather from " + new Date(S.env.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + "." : " Type the numbers in."), true);
+      // online but no answer = the weather service itself is down, which is not a phone or app problem
+      if (!quiet) wxNote((navigator.onLine === false ? "No connection." : "The weather service isn't answering right now. Try again in a few minutes.") + (S.env.at ? " Still using the weather from " + new Date(S.env.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + "." : " Type the numbers in."), true);
     }
   }, err => { if (done) return; done = true; clearTimeout(stuck); if (!quiet) wxNote(err.code === 1 ? (/iPhone|iPad/.test(navigator.userAgent) ? "Location is off for this app. Turn it on in Settings › Privacy › Location Services › Safari Websites, or type the numbers in." : "Location is blocked for this site. Allow it with the icon at the left of the address bar, or type the numbers in.") : "Couldn't find your location. Type the numbers in.", true); },
   { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
