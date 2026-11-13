@@ -329,11 +329,23 @@ const SCOPES = [{
   marks: [{ label: "Circle 1", moa: 1.91 }, { label: "Circle 2", moa: 4.30 }, { label: "Circle 3", moa: 6.68 },
           { label: "Circle 4", moa: 10.50 }, { label: "Post top", moa: 14.32 }],
   draw: { thin: 3.65, post: 14.32, dot: 1.35, ring: 0.3, noTop: true, hash: [1.35, 1.35, 1.35, 1.35], lineW: 0.2, postW: 0.9, taper: 30 },
+}, {
+  // Arken publishes no DLR dimensions. Drawn from the proportions of its picture (post tips a third of the way to the
+  // edge of the field, at any power): approx = no marks, no post range. The deer overlay shows the hold.
+  id: "arken-outrider-2-12x42-dlr", name: "Arken Outrider 2-12x42 · DLR", reticle: "DLR", approx: true,
+  note: "drawn from Arken's picture (its dimensions aren't published), so it has no holdover marks. Use the deer overlay for the hold",
+  mags: [2, 12], calMag: 12, fov: [58.83, 9.73], marks: [],
+  draw: { thin: 18.4, post: 18.4, noTop: true, hash: [], lineW: 0.45, postW: 1.1, taper: 120 },
+}, {
+  id: "arken-outrider-3-18x50-dlr", name: "Arken Outrider 3-18x50 · DLR", reticle: "DLR", approx: true,
+  note: "drawn from Arken's picture (its dimensions aren't published), so it has no holdover marks. Use the deer overlay for the hold",
+  mags: [3, 18], calMag: 18, fov: [39, 6.5], marks: [],
+  draw: { thin: 12.3, post: 12.3, noTop: true, hash: [], lineW: 0.3, postW: 0.75, taper: 120 },
 }];
 
 /* ---------- state (saved on this phone) ---------- */
 // shown at the bottom of every tab: Dewey's release number, bumped with each push (separate from CACHE in sw.js)
-const APP_VER = "1.3", APP_DATE = "Nov 12, 2026";
+const APP_VER = "1.4", APP_DATE = "Nov 12, 2026";
 $("credit").textContent = "Created by DIY Dewey - v" + APP_VER + " (" + APP_DATE + ")";
 const KEY = "scope-holds-v1";
 // mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
@@ -407,7 +419,7 @@ function scopeHolds(r, sc) {
   const path = shoot(p, angle, samples);
   const zeroRow = shoot(p, angle, [r.zero * 3])[0];
   const scale = sc.calMag / r.mag;   // second focal plane
-  const out = [{ label: "Crosshair", moa: 0, yd: r.zero, dropIn: 0, v: zeroRow ? zeroRow.v : null, sound: p.sound, edge: sc.draw.thin * scale }];
+  const out = [{ label: "Crosshair", moa: 0, yd: r.zero, dropIn: 0, v: zeroRow ? zeroRow.v : null, sound: p.sound, edge: sc.approx ? null : sc.draw.thin * scale }];
   sc.marks.forEach((m, i) => {
     const moa = m.moa * scale;
     let hit = null;
@@ -526,7 +538,7 @@ function drawReticle(sc, rows, mag) {
   const fovMoa = fovFt(sc, mag) * 12 / MOA_IN / 2;          // field radius, MOA at the target
   const u = z * R / fovMoa;                                 // drawing units per MOA at the target
   const kr = u * sc.calMag / mag;                           // drawing units per reticle MOA (marks are rated at calMag)
-  const yc = 0.42 * d.post * kr * (1 - 1 / z);              // zoomed in: center the view down toward the marks
+  const yc = Math.min(0.42 * d.post * kr * (1 - 1 / z), 0.85 * R);   // zoomed in: center the view down toward the marks, crosshair kept in view
   const dist = o => o && o.yd ? Math.round(o.yd) + " yd" : "—";
   const aim = S.deer.on && rows && rows.path ? deerAim(rows) : null;
   let g = '<defs><clipPath id="retClip"><circle cx="0" cy="0" r="' + R + '"/></clipPath></defs>' +
@@ -557,8 +569,8 @@ function drawReticle(sc, rows, mag) {
   if (aim && aim.hold !== null) g += '<circle cx="0" cy="' + (aim.hold * u).toFixed(2) + '" r="1.8" fill="#D33" stroke="#fff" stroke-width=".6"/>';   // point of impact
   g += "</g></g>";
   // distance labels sit outside the clip so they can run past the circle: zero above the crosshair, then each mark in view
-  const labX = Math.max.apply(null, d.hash) * kr / 2 + 6, inView = y => Math.abs(y - yc) < R - 2;
-  if (inView(0)) g += '<text class="r-lab zero" x="' + (d.thin * kr + 6).toFixed(1) + '" y="' + (-Math.max(6, hw + 5) - yc).toFixed(1) + '">' + (rows && rows[0] ? dist(rows[0]) + " zero" : "zero") + "</text>";
+  const labX = (d.hash.length ? Math.max.apply(null, d.hash) : 0) * kr / 2 + 6, inView = y => Math.abs(y - yc) < R - 2;
+  if (inView(0)) g += '<text class="r-lab zero" x="' + (sc.approx ? 6 : d.thin * kr + 6).toFixed(1) + '" y="' + (sc.approx ? -6 - yc : -Math.max(6, hw + 5) - yc).toFixed(1) + '">' + (rows && rows[0] ? dist(rows[0]) + " zero" : "zero") + "</text>";
   sc.marks.forEach((m, i) => {
     const y = m.moa * kr, isPost = i >= d.hash.length;
     if (inView(y)) g += '<text class="r-lab" x="' + (isPost ? d.postW * kr / 2 + 5 : labX).toFixed(1) + '" y="' + (y + 4.5 - yc).toFixed(1) + '">' + (isPost ? "post " : "") + dist(rows ? rows[i + 1] : null) + "</text>";
@@ -594,7 +606,7 @@ function showMag(r, sc) {
   if (!(r.mag >= lo && r.mag <= hi)) r.mag = sc.calMag;
   m.min = lo; m.max = hi; m.step = 1; m.value = String(r.mag);
   $("magMin").textContent = lo + "x"; $("magMax").textContent = hi + "x";
-  out.textContent = r.mag + "x" + (r.mag === sc.calMag ? " calibrated" : "");
+  out.textContent = r.mag + "x" + (r.mag === sc.calMag && !sc.approx ? " calibrated" : "");
   out.style.setProperty("--pos", (r.mag - lo) / (hi - lo));
   out.style.transform = r.mag === lo ? "none" : r.mag === hi ? "translateX(-100%)" : "";
 }
@@ -638,7 +650,7 @@ function renderHolds() {
   }
   msg.hidden = true;
   const rows = lastRows = scopeHolds(r, sc);
-  dialMax = postReach(r, sc, rows.path);
+  dialMax = sc.marks.length ? postReach(r, sc, rows.path) : 800;   // a plain duplex has no post range to stop at
   if (S.deer.yd > dialMax) S.deer.yd = dialMax;
   ethYd = ethLimit(r, rows.path); showEthNote(r);
   renderDial();
