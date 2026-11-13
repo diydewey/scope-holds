@@ -83,6 +83,8 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .zoomcol button { width: 42px; height: 42px; padding: 0; font-size: 24px; line-height: 1; }
 .zoomcol button:disabled { opacity: .35; }
 .ret-card { padding: 12px 8px; }
+/* "Shot / Distance" stacked and centered over the distance dial (52 px wide, flush left) */
+.shot-h { width: 52px; margin-left: -4px !important; display: flex; flex-direction: column; align-items: center; line-height: 1.25; white-space: nowrap; }
 .vital { fill: rgba(255,255,255,.12); stroke: #fff; stroke-width: .8; stroke-dasharray: 3 2; }
 .dial { flex: 0 0 52px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 0; border: 1px solid var(--rule); border-radius: 12px;
   background: repeating-linear-gradient(180deg, var(--surface) 0 6px, var(--ground) 6px 8px); touch-action: none; user-select: none; -webkit-user-select: none; cursor: ns-resize;
@@ -135,11 +137,6 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
 <main>
   <!-- ======================= Holds ======================= -->
   <section id="tab-holds">
-    <div class="card mv">
-      <div class="line"><b>Muzzle velocity</b><output id="mv" aria-label="Muzzle velocity in fps"></output><span>fps</span></div>
-      <p class="sub" id="mvSrc"></p>
-      <p class="sub" id="rifleLine"></p>
-    </div>
     <div class="card">
       <div class="wx-head"><h2>Weather</h2><button id="wxBtn" type="button">Get local weather</button></div>
       <div class="grid3">
@@ -150,7 +147,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
       <p class="note" id="wxNote"></p>
     </div>
     <div class="card ret-card">
-      <div class="wx-head" style="padding:0 4px"><h2>Reticle</h2><button id="deerBtn" type="button" aria-pressed="false">Deer overlay</button></div>
+      <div class="wx-head" style="padding:0 4px"><h2 class="shot-h"><span>Shot</span><span>Distance</span></h2><button id="deerBtn" type="button" aria-pressed="false">Deer overlay</button></div>
       <figure class="reticle-fig">
         <div class="ret-row">
           <div class="dial" id="dial" hidden role="slider" tabindex="0" aria-label="Distance to the deer, yards" aria-valuemin="25" aria-valuemax="800"></div>
@@ -164,6 +161,11 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
         </div>
         <figcaption id="reticleCap"></figcaption>
       </figure>
+    </div>
+    <div class="card mv">
+      <div class="line"><b>Muzzle velocity</b><output id="mv" aria-label="Muzzle velocity in fps"></output><span>fps</span></div>
+      <p class="sub" id="mvSrc"></p>
+      <p class="sub" id="rifleLine"></p>
     </div>
     <div class="card">
       <p class="note warn" id="holdMsg" hidden></p>
