@@ -1,6 +1,6 @@
 {
- "name": "Scope Holds",
- "short_name": "Scope Holds",
+ "name": "Scope Holdover",
+ "short_name": "Scope Holdover",
  "description": "Reticle holdover distances for the Bushnell DOA-QBR and Nikon BDC, with local weather.",
  "start_url": "./",
  "scope": "./",

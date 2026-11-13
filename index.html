@@ -6,12 +6,12 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Scope Holds">
+<meta name="apple-mobile-web-app-title" content="Scope Holdover">
 <meta name="theme-color" content="#0F151A">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" sizes="64x64" href="favicon-64.png">
 <link rel="apple-touch-icon" href="icon-180.png">
-<title>Scope Holds</title>
+<title>Scope Holdover</title>
 <style>
 :root {
   --ground: #E8EBED; --surface: #F7F8F9; --ink: #16202A; --muted: #586571; --rule: #CDD4DA;
@@ -128,7 +128,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
 </head>
 <body>
 <header>
-  <h1>Scope <span>Holds</span></h1>
+  <h1>Scope <span>Holdover</span></h1>
   <select id="rifleSel" aria-label="Rifle"></select>
 </header>
 <main>
@@ -564,11 +564,14 @@ function renderHolds() {
 /* ---------- weather ---------- */
 const compass = deg => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(((deg % 360) + 360) % 360 / 45) % 8];
 function wxNote(text, warn) { const n = $("wxNote"); n.textContent = text; n.classList.toggle("warn", !!warn); }
-function showEnv() {
+// typing=true: leave the boxes alone so a half-typed number ("29.") isn't rewritten under the cursor
+function showEnv(typing) {
   const e = S.env;
+  if (!typing) {
   $("tF").value = Number.isFinite(e.tF) ? e.tF : "";
   $("pIn").value = e.pIn > 0 ? e.pIn : "";
   $("alt").value = Number.isFinite(e.alt) ? e.alt : "";
+  }
   if (e.manual) wxNote("Entered by hand." + (e.pIn > 0 ? "" : " No pressure: using a standard day at the altitude."));
   else if (e.at) {
     const t = new Date(e.at), age = (Date.now() - e.at) / 60000;
@@ -599,7 +602,7 @@ function getWeather(quiet) {
 }
 function envInput() {
   S.env = Object.assign({}, S.env, { tF: num($("tF").value), pIn: num($("pIn").value), alt: num($("alt").value), manual: true, auto: false });
-  save(); showEnv(); renderHolds();
+  save(); showEnv(true); renderHolds();
 }
 
 /* ---------- rifle tab ---------- */
