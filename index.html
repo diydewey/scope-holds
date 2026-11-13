@@ -81,14 +81,14 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .grass { fill: #7C8A52; }
 .d-body { fill: url(#dGrad); } .d-far { fill: #6A5239; } .d-white { fill: #F1ECE2; } .d-dark { fill: #1E1A16; }
 .zoomcol { flex: 0 0 42px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; }
-.zoomcol span { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.zoomcol span { font-size: 15.6px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .zoomcol button { width: 42px; height: 42px; padding: 0; font-size: 24px; line-height: 1; }
 .zoomcol button:disabled { opacity: .35; }
 .ret-card { padding: 12px; }
-/* "Shot / Distance" stacked and centered over the distance dial (52 px wide, flush left) */
-.card .shot-h { width: 52px; margin-left: -4px !important; display: flex; flex-direction: column; align-items: center; line-height: 1.25; white-space: nowrap; letter-spacing: .02em; font-size: 12px; }
+/* "Shot / Distance" stacked and centered over the distance dial (62 px wide, flush left) */
+.card .shot-h { width: 62px; margin-left: -4px !important; display: flex; flex-direction: column; align-items: center; line-height: 1.25; white-space: nowrap; letter-spacing: .02em; font-size: 14.4px; }
 .vital { fill: rgba(255,255,255,.12); stroke: #fff; stroke-width: .8; stroke-dasharray: 3 2; }
-.dial { flex: 0 0 52px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 0; border: 1px solid var(--rule); border-radius: 12px;
+.dial { flex: 0 0 62px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 0; border: 1px solid var(--rule); border-radius: 12px;
   background: repeating-linear-gradient(180deg, var(--surface) 0 6px, var(--ground) 6px 8px); touch-action: none; user-select: none; -webkit-user-select: none; cursor: ns-resize;
   box-shadow: inset 0 12px 12px -8px rgba(0,0,0,.45), inset 0 -12px 12px -8px rgba(0,0,0,.45); }
 .d-item { text-align: center; font: 600 15px/1 var(--mono); color: var(--muted); padding: 7px 0; }
@@ -102,8 +102,8 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .mag-slider input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--brass); height: 30px; }
 .mag-now { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--pos, 1)); transform: translateX(-50%);
   font: 600 14px/1.2 var(--mono); color: var(--brass); white-space: nowrap; }
-.mag-ends { display: flex; justify-content: space-between; align-items: center; font: 500 14px/1 var(--mono); color: var(--muted); }
-.mag-ends b { font: 500 13px/1 var(--sans); }
+.mag-ends { display: flex; justify-content: space-between; align-items: center; font: 700 16.8px/1 var(--mono); color: var(--muted); }
+.mag-ends b { font: 700 15.6px/1 var(--sans); }
 /* tables */
 .tbl { width: 100%; border-collapse: collapse; font: 13px/1.3 var(--mono); }
 .tbl th, .tbl td { padding: 7px 4px; text-align: right; border-bottom: 1px solid var(--rule); white-space: nowrap; }
@@ -185,11 +185,11 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
       <div class="grid2">
         <label style="grid-column: 1 / -1">Name<input id="rName" type="text" autocomplete="off"></label>
         <label style="grid-column: 1 / -1">Scope<select id="rScope"></select></label>
-        <label style="grid-column: 1 / -1">Sight height <span class="u">in, bore to scope center</span><input id="rSight" type="number" inputmode="decimal" step="any"></label>
-        <label style="grid-column: 1 / -1">Zero <span class="u">yd</span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
+        <label style="grid-column: 1 / -1"><span>Sight height – <span class="u">in, bore to scope center</span></span><input id="rSight" type="number" inputmode="decimal" step="any"></label>
+        <label style="grid-column: 1 / -1"><span>Zero – <span class="u">yd</span></span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
         <label>Ballistic coefficient<input id="rBc" type="number" inputmode="decimal" step="any"></label>
         <label>Drag model<select id="rModel"><option value="g1">G1</option><option value="g7">G7</option></select></label>
-        <label style="grid-column: 1 / -1"><span>Maximum ethical range (optional) <span class="u">yd</span></span><input id="rMax" type="number" inputmode="numeric" step="any"></label>
+        <label style="grid-column: 1 / -1"><span>Maximum ethical range (optional) – <span class="u">yd</span></span><input id="rMax" type="number" inputmode="numeric" step="any"></label>
       </div>
       <p class="note" id="bcNote"></p>
     </div>
@@ -555,8 +555,8 @@ function buildMvRows() {
   box.innerHTML = "";
   r.mvs.forEach((p, i) => {
     const div = document.createElement("div"); div.className = "mvrow";
-    div.innerHTML = '<label>Muzzle velocity <span class="u">fps</span><input data-k="mv" type="number" inputmode="decimal" step="any" value="' + (p.mv ?? "") + '"></label>' +
-      '<label>Temperature <span class="u">°F</span><input data-k="t" type="text" inputmode="text" value="' + (p.t ?? "") + '"></label>' +
+    div.innerHTML = '<label><span>Muzzle velocity – <span class="u">fps</span></span><input data-k="mv" type="number" inputmode="decimal" step="any" value="' + (p.mv ?? "") + '"></label>' +
+      '<label><span>Temperature – <span class="u">°F</span></span><input data-k="t" type="text" inputmode="text" value="' + (p.t ?? "") + '"></label>' +
       (r.mvs.length > 1 && editing ? '<button type="button" class="x" aria-label="Remove">×</button>' : "<span></span>");
     div.addEventListener("input", e => { const k = e.target.dataset.k; if (!k) return; p[k] = num(e.target.value.replace("−", "-")); save(); showMv(); renderHolds(); });
     const x = div.querySelector(".x"); if (x) x.addEventListener("click", () => { r.mvs.splice(i, 1); save(); buildMvRows(); showMv(); renderHolds(); });
