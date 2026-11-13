@@ -52,6 +52,8 @@ button.solid { background: var(--brass); color: var(--ground); }
 button.quiet { border-color: var(--rule); color: var(--muted); }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.has-stn { position: relative; }
+.stn { position: absolute; left: 0; bottom: 100%; font-size: 10px; line-height: 1.2; }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .mv output { font: 600 28px/1.1 var(--mono); padding: 8px 10px; text-align: center; color: var(--brass); }
 .mv .line { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center; }
@@ -82,9 +84,9 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .zoomcol span { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
 .zoomcol button { width: 42px; height: 42px; padding: 0; font-size: 24px; line-height: 1; }
 .zoomcol button:disabled { opacity: .35; }
-.ret-card { padding: 12px 8px; }
+.ret-card { padding: 12px; }
 /* "Shot / Distance" stacked and centered over the distance dial (52 px wide, flush left) */
-.shot-h { width: 52px; margin-left: -4px !important; display: flex; flex-direction: column; align-items: center; line-height: 1.25; white-space: nowrap; }
+.card .shot-h { width: 52px; margin-left: -4px !important; display: flex; flex-direction: column; align-items: center; line-height: 1.25; white-space: nowrap; letter-spacing: .02em; font-size: 12px; }
 .vital { fill: rgba(255,255,255,.12); stroke: #fff; stroke-width: .8; stroke-dasharray: 3 2; }
 .dial { flex: 0 0 52px; display: flex; flex-direction: column; justify-content: space-between; padding: 6px 0; border: 1px solid var(--rule); border-radius: 12px;
   background: repeating-linear-gradient(180deg, var(--surface) 0 6px, var(--ground) 6px 8px); touch-action: none; user-select: none; -webkit-user-select: none; cursor: ns-resize;
@@ -92,6 +94,8 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .d-item { text-align: center; font: 600 15px/1 var(--mono); color: var(--muted); padding: 7px 0; }
 .d-item.on { color: var(--ground); background: var(--brass); font-size: 18px; border-radius: 6px; margin: 0 4px; }
 .d-item small { display: block; font-size: 10px; font-weight: 500; }
+.d-item.far { color: #F0605A; }
+.d-item.on.far { color: #fff; background: #C62F2A; }
 /* Rifle tab locked until Edit */
 #tab-rifle input:disabled, #tab-rifle select:disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: transparent; border-color: transparent; padding-left: 0; -webkit-appearance: none; appearance: none; }
 .mag-slider { position: relative; width: 100%; max-width: 360px; padding-top: 24px; }
@@ -140,9 +144,9 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
     <div class="card">
       <div class="wx-head"><h2>Weather</h2><button id="wxBtn" type="button">Get local weather</button></div>
       <div class="grid3">
-        <label>Temp <span class="u">°F</span><input id="tF" type="number" inputmode="decimal" step="any"></label>
-        <label>Pressure <span class="u">inHg, station</span><input id="pIn" type="number" inputmode="decimal" step="any" placeholder="from alt."></label>
-        <label>Altitude <span class="u">ft</span><input id="alt" type="number" inputmode="decimal" step="any"></label>
+        <label><span>Temp <span class="u">°F</span></span><input id="tF" type="number" inputmode="decimal" step="any"></label>
+        <label class="has-stn"><span class="stn">station</span><span>Pressure <span class="u">inHg</span></span><input id="pIn" type="number" inputmode="decimal" step="any" placeholder="from alt."></label>
+        <label><span>Altitude <span class="u">ft</span></span><input id="alt" type="number" inputmode="decimal" step="any"></label>
       </div>
       <p class="note" id="wxNote"></p>
     </div>
@@ -185,6 +189,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
         <label style="grid-column: 1 / -1">Zero <span class="u">yd</span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
         <label>Ballistic coefficient<input id="rBc" type="number" inputmode="decimal" step="any"></label>
         <label>Drag model<select id="rModel"><option value="g1">G1</option><option value="g7">G7</option></select></label>
+        <label style="grid-column: 1 / -1"><span>Maximum ethical range (optional) <span class="u">yd</span></span><input id="rMax" type="number" inputmode="numeric" step="any"></label>
       </div>
       <p class="note" id="bcNote"></p>
     </div>
@@ -353,6 +358,12 @@ function windForEdge(p, angle, yd, edgeMoa) {
   return (lo + hi) / 2;
 }
 
+// Farthest the bottom post reaches at the scope's lowest power (second focal plane), rounded up to 5 yd
+function postReach(r, sc, path) {
+  const moa = sc.draw.post * sc.calMag / sc.mags[0];
+  const o = path.find(q => q.ft / 3 > r.zero && holdOf(q) >= moa);
+  return o ? Math.ceil(o.ft / 3 / 5) * 5 : Math.floor(path.length / 5) * 5;
+}
 function scopeHolds(r, sc) {
   const p = params(r), angle = zeroAngle(p, r.zero * 3);
   const samples = [];
@@ -406,7 +417,8 @@ const DEER_SVG =
     'M-0.8,6.5 C4,6.6 10,6.2 18.8,4.9 L19.5,5.5 C15,6.1 10,6.9 4,7.3 C2,7.4 0.5,7.4 -1,7.3 Z ' +
     'M28.5,-6.6 C29.4,-4 29.6,-0.5 28.9,2.8 L28.2,2.3 C28.6,-0.6 28.5,-3.8 27.9,-6.3 Z"/>' +
   '<circle class="d-dark" cx="-28" cy="-12.7" r="0.8"/><circle class="d-dark" cx="-22" cy="-16.1" r="0.6"/>';
-const DIAL_MIN = 25, DIAL_MAX = 800;
+const DIAL_MIN = 25;
+let dialMax = 800;   // reset by renderHolds to the bottom post's reach at the lowest power
 const ZOOMS = [1, 1.5, 2, 3, 4, 6, 8, 10];
 let lastRows = null;   // last computed holds, so the dial and zoom only redraw the picture
 
@@ -423,17 +435,17 @@ function deerAim(rows) {
   return { yd, hold: o ? holdOf(o) : null };
 }
 function renderDial() {
-  const yd = S.deer.yd, el = $("dial");
+  const yd = S.deer.yd, el = $("dial"), max = rifle().maxRange;   // at or past the max ethical range shows red
   let h = "";
   for (let i = -3; i <= 3; i++) {
-    const v = yd + i * 5, show = v >= DIAL_MIN && v <= DIAL_MAX;
-    h += '<div class="d-item' + (i === 0 ? " on" : "") + '" data-v="' + (show ? v : "") + '" style="opacity:' + (i === 0 ? 1 : 1 - Math.abs(i) * 0.22) + '">' +
+    const v = yd + i * 5, show = v >= DIAL_MIN && v <= dialMax, far = show && max > 0 && v >= max;
+    h += '<div class="d-item' + (i === 0 ? " on" : "") + (far ? " far" : "") + '" data-v="' + (show ? v : "") + '" style="opacity:' + (i === 0 ? 1 : 1 - Math.abs(i) * 0.22) + '">' +
       (show ? v + (i === 0 ? "<small>yd</small>" : "") : "&nbsp;") + "</div>";
   }
-  el.innerHTML = h; el.setAttribute("aria-valuenow", yd);
+  el.innerHTML = h; el.setAttribute("aria-valuenow", yd); el.setAttribute("aria-valuemax", dialMax);
 }
 function setDeerYd(v) {
-  v = Math.max(DIAL_MIN, Math.min(DIAL_MAX, Math.round(v / 5) * 5));
+  v = Math.max(DIAL_MIN, Math.min(dialMax, Math.round(v / 5) * 5));
   if (v === S.deer.yd) return;
   S.deer.yd = v; save(); renderDial();
   const r = rifle(); drawReticle(scopeOf(r), lastRows, r.mag);
@@ -504,6 +516,7 @@ function drawReticle(sc, rows, mag) {
 // buttons slides left, and one that would land on the label above it is left out
 function fitLabels() {
   const svg = $("reticle"), box = svg.getBoundingClientRect(), upp = 260 / box.width;
+  if (!box.width) return;   // Holds tab hidden: fitted when it is shown again
   const maxX = (($("zoomcol") || svg).getBoundingClientRect().left - 2 - box.left) * upp - 130;
   let prev = -Infinity;
   svg.querySelectorAll(".r-lab").forEach(t => {
@@ -562,6 +575,9 @@ function renderHolds() {
   }
   msg.hidden = true;
   const rows = lastRows = scopeHolds(r, sc);
+  dialMax = postReach(r, sc, rows.path);
+  if (S.deer.yd > dialMax) S.deer.yd = dialMax;
+  renderDial();
   let h = '<thead><tr><th>Mark</th><th>Hold<span class="u">MOA</span></th><th>Range<span class="u">yd</span></th><th>Drop<span class="u">in</span></th>' +
     '<th>Vel<span class="u">fps</span></th><th>Wind<span class="u">mph</span></th></tr></thead><tbody>';
   rows.forEach(o => {
@@ -627,7 +643,7 @@ function fillRifleSel() {
 function showRifle() {
   const r = rifle();
   $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc > 0 ? r.bc.toFixed(3) : (r.bc ?? ""); $("rModel").value = r.model;
-  $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? "";
+  $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? ""; $("rMax").value = r.maxRange ?? "";
   $("bcNote").textContent = r.bcNote || "";
   setEditing(editing);
 }
@@ -648,6 +664,7 @@ function rifleInput(e) {
   else if (id === "rBc") { r.bc = num(e.target.value); r.bcNote = ""; $("bcNote").textContent = ""; }
   else if (id === "rZero") r.zero = num(e.target.value);
   else if (id === "rSight") r.sight = num(e.target.value);
+  else if (id === "rMax") { const v = num(e.target.value); r.maxRange = v > 0 ? v : null; }
   save(); renderHolds();
 }
 
@@ -739,7 +756,7 @@ function runCheck(fit) {
 /* ---------- wiring ---------- */
 function showAll() { fillRifleSel(); showRifle(); showEnv(); renderHolds(); buildChecks(); $("chkOut").hidden = true; }
 const sc0 = $("rScope"); SCOPES.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sc0.appendChild(o); });
-["rName", "rScope", "rBc", "rModel", "rZero", "rSight"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
+["rName", "rScope", "rBc", "rModel", "rZero", "rSight", "rMax"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
 ["tF", "pIn", "alt"].forEach(id => $(id).addEventListener("input", envInput));
 $("mag").addEventListener("input", e => { rifle().mag = Number(e.target.value); save(); renderHolds(); });
 $("rifleSel").addEventListener("change", e => { S.cur = e.target.value; editing = false; save(); showAll(); });
@@ -784,6 +801,7 @@ document.querySelectorAll("nav.tabs button").forEach(b => b.addEventListener("cl
   ["holds", "rifle", "correct"].forEach(t => { $("tab-" + t).hidden = t !== b.dataset.tab; });
   if (b.dataset.tab !== "rifle" && editing) { setEditing(false); save(); showAll(); }   // leaving the Rifle tab locks it
   if (b.dataset.tab === "correct") buildChecks();
+  if (b.dataset.tab === "holds") { const r = rifle(); drawReticle(scopeOf(r), lastRows, r.mag); }
   window.scrollTo(0, 0);
 }));
 showAll();
