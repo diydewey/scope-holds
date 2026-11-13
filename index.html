@@ -63,6 +63,7 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .wx-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
 .wx-head h2 { margin: 0; }
 .note { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.credit { font-size: 12px; color: var(--muted); text-align: center; margin: 14px 0 6px; }
 .note.warn { color: var(--warn); }
 /* reticle */
 .reticle-fig { margin: 0; display: grid; gap: 6px; justify-items: center; }
@@ -222,6 +223,7 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
     </div>
     <div class="card" id="chkOut" hidden></div>
   </section>
+  <p class="credit" id="credit"></p>
 </main>
 <nav class="tabs">
   <button type="button" data-tab="holds" class="on">Holds</button>
@@ -311,6 +313,9 @@ const SCOPES = [{
 }];
 
 /* ---------- state (saved on this phone) ---------- */
+// shown at the bottom of every tab: Dewey's release number, bumped with each push (separate from CACHE in sw.js)
+const APP_VER = "1.0", APP_DATE = "Nov 12, 2026";
+$("credit").textContent = "Created by DIY Dewey - v" + APP_VER + " (" + APP_DATE + ")";
 const KEY = "scope-holds-v1";
 // mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
 // default rifle on a fresh install
