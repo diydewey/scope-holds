@@ -35,7 +35,7 @@
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--ground); color: var(--ink); font: 15px/1.4 var(--sans);
   padding: env(safe-area-inset-top) 0 calc(64px + env(safe-area-inset-bottom)); }
-header { display: flex; align-items: center; gap: 10px; padding: 12px 16px 8px; }
+header { display: flex; align-items: center; gap: 10px; padding: 12px 16px 8px; max-width: 560px; margin: 0 auto; }
 header h1 { margin: 0; font-size: 18px; letter-spacing: .02em; white-space: nowrap; }
 header h1 span { color: var(--brass); }
 header select { flex: 1; min-width: 0; }
@@ -314,7 +314,7 @@ const SCOPES = [{
 
 /* ---------- state (saved on this phone) ---------- */
 // shown at the bottom of every tab: Dewey's release number, bumped with each push (separate from CACHE in sw.js)
-const APP_VER = "1.0", APP_DATE = "Nov 12, 2026";
+const APP_VER = "1.1", APP_DATE = "Nov 12, 2026";
 $("credit").textContent = "Created by DIY Dewey - v" + APP_VER + " (" + APP_DATE + ")";
 const KEY = "scope-holds-v1";
 // mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
