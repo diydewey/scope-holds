@@ -598,7 +598,7 @@ function showEnv(typing) {
   const e = S.env;
   if (!typing) {
   $("tF").value = Number.isFinite(e.tF) ? e.tF : "";
-  $("pIn").value = e.pIn > 0 ? e.pIn : "";
+  $("pIn").value = e.pIn > 0 ? e.pIn.toFixed(2) : "";   // always XX.XX
   $("alt").value = Number.isFinite(e.alt) ? e.alt : "";
   }
   if (e.manual) wxNote("Entered by hand." + (e.pIn > 0 ? "" : " No pressure: using a standard day at the altitude."));
@@ -611,14 +611,19 @@ function showEnv(typing) {
 function getWeather(quiet) {
   if (!navigator.geolocation) { if (!quiet) wxNote("Location isn't available here. Type the numbers in.", true); return; }
   if (!quiet) wxNote("Finding your location…");
+  // the browser's own timeout only starts once location is allowed, so a prompt left open or Windows location
+  // turned off can wait forever: give up after 20 s
+  let done = false;
+  const stuck = setTimeout(() => { done = true; if (!quiet) wxNote("Couldn't get your location. On a computer, allow location for this site in the browser and turn on Windows Settings › Privacy & security › Location. Or type the numbers in.", true); }, 20000);
   navigator.geolocation.getCurrentPosition(async pos => {
+    if (done) return; done = true; clearTimeout(stuck);
     // rounded to ~1 km: plenty for weather, and the exact spot never leaves the phone
     const la = pos.coords.latitude.toFixed(2), lo = pos.coords.longitude.toFixed(2);
     try {
       if (!quiet) wxNote("Getting the weather…");
       const u = "https://api.open-meteo.com/v1/forecast?latitude=" + la + "&longitude=" + lo +
         "&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph";
-      const res = await fetch(u); if (!res.ok) throw new Error(res.status);
+      const res = await fetch(u, AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {}); if (!res.ok) throw new Error(res.status);
       const j = await res.json(), c = j.current;
       S.env = { tF: Math.round(c.temperature_2m * 10) / 10, pIn: Math.round(c.surface_pressure * 0.02953 * 100) / 100,
         alt: Math.round(j.elevation * 3.28084), at: Date.now(), hum: c.relative_humidity_2m, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, auto: true };
@@ -626,7 +631,7 @@ function getWeather(quiet) {
     } catch (e) {
       if (!quiet) wxNote("No connection." + (S.env.at ? " Still using the weather from " + new Date(S.env.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + "." : " Type the numbers in."), true);
     }
-  }, err => { if (!quiet) wxNote(err.code === 1 ? "Location is off for this app. Turn it on in Settings › Privacy › Location Services › Safari Websites, or type the numbers in." : "Couldn't find your location. Type the numbers in.", true); },
+  }, err => { if (done) return; done = true; clearTimeout(stuck); if (!quiet) wxNote(err.code === 1 ? (/iPhone|iPad/.test(navigator.userAgent) ? "Location is off for this app. Turn it on in Settings › Privacy › Location Services › Safari Websites, or type the numbers in." : "Location is blocked for this site. Allow it with the icon at the left of the address bar, or type the numbers in.") : "Couldn't find your location. Type the numbers in.", true); },
   { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
 }
 function envInput() {
@@ -757,7 +762,7 @@ function runCheck(fit) {
 function showAll() { fillRifleSel(); showRifle(); showEnv(); renderHolds(); buildChecks(); $("chkOut").hidden = true; }
 const sc0 = $("rScope"); SCOPES.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sc0.appendChild(o); });
 ["rName", "rScope", "rBc", "rModel", "rZero", "rSight", "rMax"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
-["tF", "pIn", "alt"].forEach(id => $(id).addEventListener("input", envInput));
+["tF", "pIn", "alt"].forEach(id => { $(id).addEventListener("input", envInput); $(id).addEventListener("change", () => showEnv()); });   // tidy the number when the box is left
 $("mag").addEventListener("input", e => { rifle().mag = Number(e.target.value); save(); renderHolds(); });
 $("rifleSel").addEventListener("change", e => { S.cur = e.target.value; editing = false; save(); showAll(); });
 $("wxBtn").addEventListener("click", () => getWeather(false));
