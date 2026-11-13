@@ -359,7 +359,7 @@ const SCOPES = [{
 
 /* ---------- state (saved on this phone) ---------- */
 // shown at the bottom of every tab: Dewey's release number, bumped with each push (separate from CACHE in sw.js)
-const APP_VER = "1.5", APP_DATE = "Nov 12, 2026";
+const APP_VER = "1.6", APP_DATE = "Nov 12, 2026";
 $("credit").textContent = "Created by DIY Dewey - v" + APP_VER + " (" + APP_DATE + ")";
 const KEY = "scope-holds-v1";
 // mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
@@ -711,9 +711,22 @@ function showEnv(typing) {
   if (e.manual) wxNote("Entered by hand." + (e.pIn > 0 ? "" : " No pressure: using a standard day at the altitude."));
   else if (e.at) {
     const t = new Date(e.at), age = (Date.now() - e.at) / 60000;
-    wxNote("Local weather from " + t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (age > 720 ? " on " + t.toLocaleDateString() : "") +
+    wxNote("Local weather" + (e.backup ? " (backup service)" : "") + " from " + t.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (age > 720 ? " on " + t.toLocaleDateString() : "") +
       " · humidity " + Math.round(e.hum) + "% · wind " + Math.round(e.wind) + " mph from the " + compass(e.windDir) + " (" + Math.round(e.windDir) + "°)", age > 180);
   } else wxNote("Tap Get local weather, or type temperature and pressure (or altitude for a standard day).");
+}
+async function wxGet(u, ms) {
+  const res = await fetch(u, AbortSignal.timeout ? { signal: AbortSignal.timeout(ms) } : {}); if (!res.ok) throw new Error(res.status);
+  return res.json();
+}
+// Backup weather service (MET Norway, worldwide). It gives sea-level pressure, so that is brought down to the
+// ground height it reports, using the air temperature, to get the station pressure the solver needs.
+async function wxBackup(la, lo) {
+  const j = await wxGet("https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=" + la + "&lon=" + lo, 12000);
+  const h = j.geometry.coordinates[2], now = Date.now(), gap = o => Math.abs(Date.parse(o.time) - now);
+  const d = j.properties.timeseries.reduce((x, y) => gap(y) < gap(x) ? y : x).data.instant.details, tC = d.air_temperature;
+  return { tF: tC * 1.8 + 32, pIn: d.air_pressure_at_sea_level * Math.pow(1 - 0.0065 * h / (tC + 0.0065 * h + 273.15), 5.257) * 0.02953,
+    alt: h * 3.28084, hum: d.relative_humidity, wind: d.wind_speed * 2.23694, windDir: d.wind_from_direction, backup: true };
 }
 function getWeather(quiet) {
   if (!navigator.geolocation) { if (!quiet) wxNote("Location isn't available here. Type the numbers in.", true); return; }
@@ -728,16 +741,17 @@ function getWeather(quiet) {
     const la = pos.coords.latitude.toFixed(2), lo = pos.coords.longitude.toFixed(2);
     try {
       if (!quiet) wxNote("Getting the weather…");
-      const u = "https://api.open-meteo.com/v1/forecast?latitude=" + la + "&longitude=" + lo +
-        "&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph";
-      const res = await fetch(u, AbortSignal.timeout ? { signal: AbortSignal.timeout(15000) } : {}); if (!res.ok) throw new Error(res.status);
-      const j = await res.json(), c = j.current;
-      S.env = { tF: Math.round(c.temperature_2m * 10) / 10, pIn: Math.round(c.surface_pressure * 0.02953 * 100) / 100,
-        alt: Math.round(j.elevation * 3.28084), at: Date.now(), hum: c.relative_humidity_2m, wind: c.wind_speed_10m, windDir: c.wind_direction_10m, auto: true };
+      let w;
+      try {
+        const j = await wxGet("https://api.open-meteo.com/v1/forecast?latitude=" + la + "&longitude=" + lo +
+          "&current=temperature_2m,relative_humidity_2m,surface_pressure,wind_speed_10m,wind_direction_10m&temperature_unit=fahrenheit&wind_speed_unit=mph", 8000), c = j.current;
+        w = { tF: c.temperature_2m, pIn: c.surface_pressure * 0.02953, alt: j.elevation * 3.28084, hum: c.relative_humidity_2m, wind: c.wind_speed_10m, windDir: c.wind_direction_10m };
+      } catch (e) { w = await wxBackup(la, lo); }   // first service down: try the second
+      S.env = { tF: Math.round(w.tF * 10) / 10, pIn: Math.round(w.pIn * 100) / 100, alt: Math.round(w.alt), at: Date.now(), hum: w.hum, wind: w.wind, windDir: w.windDir, backup: !!w.backup, auto: true };
       save(); showEnv(); renderHolds(); if (!$("chkOut").hidden) runCheck(false);
     } catch (e) {
       // online but no answer = the weather service itself is down, which is not a phone or app problem
-      if (!quiet) wxNote((navigator.onLine === false ? "No connection." : "The weather service isn't answering right now. Try again in a few minutes.") + (S.env.at ? " Still using the weather from " + new Date(S.env.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + "." : " Type the numbers in."), true);
+      if (!quiet) wxNote((navigator.onLine === false ? "No connection." : "Neither weather service is answering right now. Try again in a few minutes.") + (S.env.at ? " Still using the weather from " + new Date(S.env.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) + "." : " Type the numbers in."), true);
     }
   }, err => { if (done) return; done = true; clearTimeout(stuck); if (!quiet) wxNote(err.code === 1 ? (/iPhone|iPad/.test(navigator.userAgent) ? "Location is off for this app. Turn it on in Settings › Privacy › Location Services › Safari Websites, or type the numbers in." : "Location is blocked for this site. Allow it with the icon at the left of the address bar, or type the numbers in.") : "Couldn't find your location. Type the numbers in.", true); },
   { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 });
