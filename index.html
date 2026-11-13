@@ -513,16 +513,20 @@ function drawReticle(sc, rows, mag) {
 }
 
 // Labels stay level with their marks and may run past the circle; one that would reach the FOV
-// buttons slides left, and one that would land on the label above it is left out
+// buttons slides left. A label that would land on the one above it moves to the left of the
+// vertical line (clear of the dial), and is left out only if that side is taken too.
 function fitLabels() {
   const svg = $("reticle"), box = svg.getBoundingClientRect(), upp = 260 / box.width;
   if (!box.width) return;   // Holds tab hidden: fitted when it is shown again
-  const maxX = (($("zoomcol") || svg).getBoundingClientRect().left - 2 - box.left) * upp - 130;
-  let prev = -Infinity;
+  const edge = (el, side) => (el.getBoundingClientRect()[side] - box.left) * upp - 130;
+  const maxX = edge($("zoomcol"), "left") - 2 * upp;
+  const minX = $("dial").hidden ? edge(svg.parentNode, "left") : edge($("dial"), "right") + 2 * upp;
+  let prevR = -Infinity, prevL = -Infinity;
   svg.querySelectorAll(".r-lab").forEach(t => {
-    const y = +t.getAttribute("y"), x = Math.min(+t.getAttribute("x"), maxX - t.getComputedTextLength());
-    if (y - prev < 14) { t.remove(); return; }
-    t.setAttribute("x", x.toFixed(1)); prev = y;
+    const y = +t.getAttribute("y"), x0 = +t.getAttribute("x"), w = t.getComputedTextLength();
+    if (y - prevR >= 14) { t.setAttribute("x", Math.min(x0, maxX - w).toFixed(1)); prevR = y; }
+    else if (y - prevL >= 14) { t.setAttribute("x", Math.max(-x0, minX + w).toFixed(1)); t.setAttribute("text-anchor", "end"); prevL = y; }
+    else t.remove();
   });
 }
 
