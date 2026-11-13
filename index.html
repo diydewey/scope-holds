@@ -98,7 +98,19 @@ button.quiet { border-color: var(--rule); color: var(--muted); }
 .d-item.far { color: #F0605A; }
 .d-item.on.far { color: #fff; background: #C62F2A; }
 /* Rifle tab locked until Edit */
-#tab-rifle input:disabled, #tab-rifle select:disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: transparent; border-color: transparent; padding-left: 0; -webkit-appearance: none; appearance: none; }
+/* Maximum ethical range: on/off switch, then one of three limits */
+.eth { border-top: 1px solid var(--rule); padding-top: 10px; display: grid; gap: 8px; }
+.eth-head { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.eth-row { display: grid; grid-template-columns: 24px 1fr 110px; align-items: center; gap: 8px; }
+.eth-row label { display: block; font-size: 14px; color: var(--ink); }
+.eth-row.dim, .eth.off .eth-row { opacity: .45; }
+.eth input[type="radio"] { width: 22px; height: 22px; padding: 0; margin: 0; accent-color: var(--brass); }
+.switch { -webkit-appearance: none; appearance: none; flex: none; width: 46px; height: 26px; padding: 0; border-radius: 13px; background: var(--rule); border: 0; position: relative; cursor: pointer; transition: background .15s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--ink); transition: transform .15s; }
+.switch:checked { background: var(--brass); }
+.switch:checked::after { transform: translateX(20px); background: var(--ground); }
+.switch:disabled { cursor: default; }
+#tab-rifle input:disabled:not([type="radio"]):not(.switch), #tab-rifle select:disabled { opacity: 1; color: var(--ink); -webkit-text-fill-color: var(--ink); background: transparent; border-color: transparent; padding-left: 0; -webkit-appearance: none; appearance: none; }
 .mag-slider { position: relative; width: 100%; max-width: 360px; padding-top: 24px; }
 .mag-slider input[type="range"] { padding: 0; border: 0; background: none; accent-color: var(--brass); height: 30px; }
 .mag-now { position: absolute; top: 0; left: calc(8px + (100% - 16px) * var(--pos, 1)); transform: translateX(-50%);
@@ -190,7 +202,14 @@ nav.tabs button.on { color: var(--brass); box-shadow: inset 0 3px 0 var(--brass)
         <label style="grid-column: 1 / -1"><span>Zero – <span class="u">yd</span></span><input id="rZero" type="number" inputmode="decimal" step="any"></label>
         <label>Ballistic coefficient<input id="rBc" type="number" inputmode="decimal" step="any"></label>
         <label>Drag model<select id="rModel"><option value="g1">G1</option><option value="g7">G7</option></select></label>
-        <label style="grid-column: 1 / -1"><span>Maximum ethical range (optional) – <span class="u">yd</span></span><input id="rMax" type="number" inputmode="numeric" step="any"></label>
+        <label style="grid-column: 1 / -1"><span>Bullet weight (optional, for energy) – <span class="u">gr</span></span><input id="rWt" type="number" inputmode="decimal" step="any"></label>
+        <div class="eth" id="eth" style="grid-column: 1 / -1">
+          <div class="eth-head"><span>Maximum ethical range</span><input type="checkbox" class="switch" id="ethOn" role="switch" aria-label="Maximum ethical range on or off"></div>
+          <div class="eth-row"><input type="radio" name="ethMode" value="yd" id="ethM-yd"><label for="ethM-yd">Distance – yds</label><input id="ethV-yd" type="number" inputmode="decimal" step="any" aria-label="Maximum distance, yards"></div>
+          <div class="eth-row"><input type="radio" name="ethMode" value="fps" id="ethM-fps"><label for="ethM-fps">Velocity – fps</label><input id="ethV-fps" type="number" inputmode="decimal" step="any" aria-label="Minimum impact velocity, fps"></div>
+          <div class="eth-row"><input type="radio" name="ethMode" value="ftlb" id="ethM-ftlb"><label for="ethM-ftlb">Energy – ft-lbs</label><input id="ethV-ftlb" type="number" inputmode="decimal" step="any" aria-label="Minimum impact energy, foot-pounds"></div>
+          <p class="note" id="ethNote"></p>
+        </div>
       </div>
       <p class="note" id="bcNote"></p>
     </div>
@@ -314,17 +333,19 @@ const SCOPES = [{
 
 /* ---------- state (saved on this phone) ---------- */
 // shown at the bottom of every tab: Dewey's release number, bumped with each push (separate from CACHE in sw.js)
-const APP_VER = "1.1", APP_DATE = "Nov 12, 2026";
+const APP_VER = "1.2", APP_DATE = "Nov 12, 2026";
 $("credit").textContent = "Created by DIY Dewey - v" + APP_VER + " (" + APP_DATE + ")";
 const KEY = "scope-holds-v1";
 // mvs: chronographed muzzle velocities with the temperature they were shot at (edited on the Rifle tab only)
 // default rifle on a fresh install
 const DEF_NAME = 'Rem78 308 22"';
-const newRifle = (name, from) => Object.assign({ name: DEF_NAME, scope: SCOPES[0].id, mag: 9, bc: 0.26, model: "g7", mvs: [{ mv: 2590, t: 75 }], zero: 100, sight: 1.58, checks: [] },
+const newRifle = (name, from) => Object.assign({ name: DEF_NAME, scope: SCOPES[0].id, mag: 9, bc: 0.26, model: "g7", mvs: [{ mv: 2590, t: 75 }], zero: 100, sight: 1.58, checks: [], wt: null, eth: { on: false, mode: "yd", yd: null, fps: null, ftlb: null } },
   from ? JSON.parse(JSON.stringify(from)) : {}, { id: "r" + Date.now().toString(36), name: name || (from ? from.name + " copy" : DEF_NAME) });
 let S = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.rifles && s.rifles.length) return s; } catch (e) {} return null; })();
 if (!S) { const r = newRifle(); S = { cur: r.id, rifles: [r], env: { tF: 59, pIn: null, alt: 0, at: null } }; }
 // rifles saved before the velocity table had one velocity (mv)
+// rifles saved before the three-way ethical limit had one yardage (maxRange)
+S.rifles.forEach(r => { if (!r.eth) { r.eth = { on: r.maxRange > 0, mode: "yd", yd: r.maxRange > 0 ? r.maxRange : null, fps: null, ftlb: null }; delete r.maxRange; } });
 S.rifles.forEach(r => { if (!Array.isArray(r.mvs)) { r.mvs = [{ mv: r.mv > 0 ? r.mv : null, t: null }]; delete r.mv; } delete r.mvToday; });
 S.deer = Object.assign({ on: false, yd: 200 }, S.deer);
 S.view = Object.assign({ deer: 2, ret: 6 }, S.view);   // picture zoom per mode (1 = the scope's whole field of view)
@@ -439,11 +460,34 @@ function deerAim(rows) {
   const yd = S.deer.yd, o = rows.path[yd - 1];
   return { yd, hold: o ? holdOf(o) : null };
 }
+// Yardage where the maximum ethical range is reached in the current weather (null = no limit): the entered
+// distance, or where the bullet first slows to the entered velocity or energy floor
+let ethYd = null;
+function ethLimit(r, path) {
+  const e = r.eth;
+  if (!e.on) return null;
+  if (e.mode === "yd") return e.yd > 0 ? e.yd : null;
+  const floor = e.mode === "fps" ? e.fps : (e.ftlb > 0 && r.wt > 0 ? Math.sqrt(e.ftlb * 450436 / r.wt) : null);   // E = gr * fps^2 / 450436
+  if (!(floor > 0) || !path) return null;
+  const i = path.findIndex(q => q.v <= floor);
+  return i < 0 ? null : i === 0 ? 0 : path[i].ft / 3;
+}
+function showEthNote(r) {
+  const e = r.eth, n = $("ethNote");
+  let t = "", warn = false;
+  if (e.on && e.mode === "ftlb" && e.ftlb > 0 && !(r.wt > 0)) { t = "Enter the bullet weight above to use an energy limit."; warn = true; }
+  else if (e.on && e.mode !== "yd" && e[e.mode] > 0) {
+    const what = e.mode === "fps" ? "Velocity falls to " + e.fps + " fps" : "Energy falls to " + e.ftlb + " ft-lbs";
+    t = ethYd === null ? what.replace("falls to", "stays above") + " in the current weather, so nothing on the dial turns red."
+      : what + " at " + Math.round(ethYd) + " yd in the current weather. The dial turns red from there.";
+  }
+  n.textContent = t; n.classList.toggle("warn", warn); n.hidden = !t;
+}
 function renderDial() {
-  const yd = S.deer.yd, el = $("dial"), max = rifle().maxRange;   // at or past the max ethical range shows red
+  const yd = S.deer.yd, el = $("dial"), max = ethYd;   // at or past the max ethical range shows red
   let h = "";
   for (let i = -3; i <= 3; i++) {
-    const v = yd + i * 5, show = v >= DIAL_MIN && v <= dialMax, far = show && max > 0 && v >= max;
+    const v = yd + i * 5, show = v >= DIAL_MIN && v <= dialMax, far = show && max !== null && v >= max;
     h += '<div class="d-item' + (i === 0 ? " on" : "") + (far ? " far" : "") + '" data-v="' + (show ? v : "") + '" style="opacity:' + (i === 0 ? 1 : 1 - Math.abs(i) * 0.22) + '">' +
       (show ? v + (i === 0 ? "<small>yd</small>" : "") : "&nbsp;") + "</div>";
   }
@@ -580,12 +624,13 @@ function renderHolds() {
   $("deerBtn").setAttribute("aria-pressed", S.deer.on); renderDial();
   if (!ready(r)) {
     msg.textContent = "Fill in velocity, BC, zero and sight height on the Rifle tab.";
-    msg.hidden = false; table.innerHTML = ""; lastRows = null; drawReticle(sc, null, r.mag); return;
+    msg.hidden = false; table.innerHTML = ""; lastRows = null; ethYd = ethLimit(r, null); showEthNote(r); renderDial(); drawReticle(sc, null, r.mag); return;
   }
   msg.hidden = true;
   const rows = lastRows = scopeHolds(r, sc);
   dialMax = postReach(r, sc, rows.path);
   if (S.deer.yd > dialMax) S.deer.yd = dialMax;
+  ethYd = ethLimit(r, rows.path); showEthNote(r);
   renderDial();
   let h = '<thead><tr><th>Mark</th><th>Hold<span class="u">MOA</span></th><th>Range<span class="u">yd</span></th><th>Drop<span class="u">in</span></th>' +
     '<th>Vel<span class="u">fps</span></th><th>Wind<span class="u">mph</span></th></tr></thead><tbody>';
@@ -658,7 +703,9 @@ function fillRifleSel() {
 function showRifle() {
   const r = rifle();
   $("rName").value = r.name; $("rScope").value = r.scope; $("rBc").value = r.bc > 0 ? r.bc.toFixed(3) : (r.bc ?? ""); $("rModel").value = r.model;
-  $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? ""; $("rMax").value = r.maxRange ?? "";
+  $("rZero").value = r.zero ?? ""; $("rSight").value = r.sight ?? ""; $("rWt").value = r.wt ?? "";
+  $("ethOn").checked = !!r.eth.on;
+  ["yd", "fps", "ftlb"].forEach(k => { $("ethM-" + k).checked = r.eth.mode === k; $("ethV-" + k).value = r.eth[k] ?? ""; });
   $("bcNote").textContent = r.bcNote || "";
   setEditing(editing);
 }
@@ -669,7 +716,25 @@ function setEditing(on) {
   $("editRifle").textContent = on ? "Save" : "Edit";
   buildMvRows();
   document.querySelectorAll("#tab-rifle input, #tab-rifle select").forEach(el => { el.disabled = !on; });
+  lockEth();
   $("addMv").hidden = !on;
+}
+// Ethical-limit rows: usable only while editing with the switch on, and only the chosen row takes a number
+function lockEth() {
+  const e = rifle().eth;
+  $("eth").classList.toggle("off", !e.on);
+  ["yd", "fps", "ftlb"].forEach(k => {
+    $("ethM-" + k).disabled = !editing || !e.on;
+    $("ethV-" + k).disabled = !editing || !e.on || e.mode !== k;
+    $("ethM-" + k).parentNode.classList.toggle("dim", e.on && e.mode !== k);
+  });
+}
+function ethInput(ev) {
+  const e = rifle().eth, el = ev.target;
+  if (el.id === "ethOn") e.on = el.checked;
+  else if (el.name === "ethMode") e.mode = el.value;
+  else { const v = num(el.value); e[el.id.slice(5)] = v > 0 ? v : null; }
+  lockEth(); save(); renderHolds();
 }
 function rifleInput(e) {
   const r = rifle(), id = e.target.id;
@@ -679,7 +744,7 @@ function rifleInput(e) {
   else if (id === "rBc") { r.bc = num(e.target.value); r.bcNote = ""; $("bcNote").textContent = ""; }
   else if (id === "rZero") r.zero = num(e.target.value);
   else if (id === "rSight") r.sight = num(e.target.value);
-  else if (id === "rMax") { const v = num(e.target.value); r.maxRange = v > 0 ? v : null; }
+  else if (id === "rWt") { const v = num(e.target.value); r.wt = v > 0 ? v : null; }
   save(); renderHolds();
 }
 
@@ -771,7 +836,9 @@ function runCheck(fit) {
 /* ---------- wiring ---------- */
 function showAll() { fillRifleSel(); showRifle(); showEnv(); renderHolds(); buildChecks(); $("chkOut").hidden = true; }
 const sc0 = $("rScope"); SCOPES.forEach(s => { const o = document.createElement("option"); o.value = s.id; o.textContent = s.name; sc0.appendChild(o); });
-["rName", "rScope", "rBc", "rModel", "rZero", "rSight", "rMax"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
+["rName", "rScope", "rBc", "rModel", "rZero", "rSight", "rWt"].forEach(id => $(id).addEventListener(id === "rScope" || id === "rModel" ? "change" : "input", rifleInput));
+$("ethOn").addEventListener("change", ethInput);
+["yd", "fps", "ftlb"].forEach(k => { $("ethM-" + k).addEventListener("change", ethInput); $("ethV-" + k).addEventListener("input", ethInput); });
 ["tF", "pIn", "alt"].forEach(id => { $(id).addEventListener("input", envInput); $(id).addEventListener("change", () => showEnv()); });   // tidy the number when the box is left
 $("mag").addEventListener("input", e => { rifle().mag = Number(e.target.value); save(); renderHolds(); });
 $("rifleSel").addEventListener("change", e => { S.cur = e.target.value; editing = false; save(); showAll(); });
